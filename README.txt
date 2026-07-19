@@ -1,16 +1,18 @@
-Sri Nidhi Study Hall Management System v1.0
+Sri Nidhi Study Hall Management System v1.1
 
 Demo Login:
 Username: admin
 Password: 1234
 
-How to run:
-1. Extract ZIP file.
-2. Open index.html in Chrome.
-3. For online use, upload all files to GitHub repository and enable GitHub Pages.
+Update Highlights:
+- Mobile responsive sidebar and overlay
+- Complete admission form
+- Student photo, parent, address, batch, seat and fee details
+- Student profile view
+- Gender/search filters
+- Individual monthly fee support
+- Fee receipt numbers
+- Pending month selector and PDF
+- Backup restore support
 
-Current modules:
-Dashboard, Students, Admissions, Fees, Pending Fee PDF, Attendance, Entry/Exit, Location link, Reports, Settings, Backup.
-
-Note:
-This version stores data in the browser using localStorage. Firebase cloud sync can be added in the next version.
+Upload index.html, style.css and app.js to the root of the GitHub repository.
