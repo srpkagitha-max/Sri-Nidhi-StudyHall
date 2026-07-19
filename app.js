@@ -52,7 +52,7 @@ el('modalClose').onclick=closeModal;el('modal').onclick=e=>{if(e.target===el('mo
 function openModal(html){el('modalBody').innerHTML=html;el('modal').classList.remove('hidden')}
 function closeModal(){el('modal').classList.add('hidden');el('modalBody').innerHTML=''}
 
-function render(page){currentPage=page;document.querySelectorAll('#navMenu button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));const titles={dashboard:'Dashboard',students:'Students',admissions:'Admissions',fees:'Fees',pending:'Pending Fees',attendance:'Attendance',movement:'Entry / Exit',notices:'Notices',diary:'Daily Diary',reports:'Reports',settings:'Settings'};el('pageTitle').textContent=titles[page]||page;el('sideHallName').textContent=db.settings.hallName.replace(/Study Hall/i,'').trim()||'Sri Nidhi';({dashboard:renderDashboard,students:renderStudents,admissions:renderAdmissions,fees:renderFees,pending:renderPending,attendance:renderAttendance,movement:renderMovement,notices:renderNotices,diary:renderDiary,reports:renderReports,settings:renderSettings}[page]||renderDashboard)()}
+function render(page){currentPage=page;document.querySelectorAll('#navMenu button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));const titles={dashboard:'Home',students:'Students',admissions:'Admissions',fees:'Fees',pending:'Pending Fees',attendance:'Attendance',movement:'Entry / Exit',notices:'Notices',diary:'Daily Diary',reports:'Reports',settings:'Settings'};el('pageTitle').textContent=titles[page]||page;el('sideHallName').textContent=db.settings.hallName.replace(/Study Hall/i,'').trim()||'Sri Nidhi';({dashboard:renderDashboard,students:renderStudents,admissions:renderAdmissions,fees:renderFees,pending:renderPending,attendance:renderAttendance,movement:renderMovement,notices:renderNotices,diary:renderDiary,reports:renderReports,settings:renderSettings}[page]||renderDashboard)()}
 
 function updateLiveClock(){const clock=el('liveClock');if(clock)clock.textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
 function renderDashboard(){
@@ -70,9 +70,8 @@ function renderDashboard(){
  content.replaceChildren();
  content.innerHTML=`
  <section class="d3-welcome">
-   <p>WELCOME BACK</p>
    <h1>${esc(db.settings.hallName)}</h1>
-   <span>Student Management, Fees & Security</span>
+   <span>Today’s study hall summary</span>
  </section>
 
  ${late?`<button class="d3-alert" onclick="render('movement')"><span>Late return requires attention</span><b>${late}</b></button>`:''}

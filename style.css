@@ -112,3 +112,23 @@ th{background:#f3f9f8;color:#35595a}
   .login-card h1{font-size:29px;line-height:1.15}
   .dashboard-search input,.d3-search input{font-size:15px}
 }
+
+/* v2.3 unified Design 3 polish */
+:root{--bg:#f4f8f8;--card:#fff;--text:#123e3b;--muted:#758684;--primary:#0f7f7a;--primary2:#0b6662;--line:#dce9e8;--shadow:0 8px 24px rgba(15,127,122,.08)}
+.login-wrap{background:linear-gradient(180deg,#edf8f7 0%,#f8fbfb 100%)}
+.logo,.brand-logo{background:linear-gradient(135deg,#0f7f7a,#18a29a)}
+.sidebar{background:#0b6f6a}.brand span{color:#d4efed}.sidebar nav button,.logout{color:#e6f5f4}.sidebar nav button:hover,.sidebar nav button.active{background:rgba(255,255,255,.15);color:#fff}.logout{background:rgba(38,31,56,.28);color:#fff}
+.menu-btn,.admin-chip{background:#e9f6f5;color:var(--primary2)}
+.hero{background:linear-gradient(135deg,#0b6662,#159a93)}
+.primary{background:var(--primary)}.primary:hover{background:var(--primary2)}
+.section-title{color:var(--primary2)}
+.avatar,.profile-photo{background:#e9f6f5;color:var(--primary)}
+.notice-card,.timeline-item{background:#f3fbfa}
+.d3-welcome{padding:8px 2px 14px!important;background:transparent!important;border-radius:0!important;color:var(--text)!important;box-shadow:none!important;margin-bottom:8px!important}
+.d3-welcome p{display:none!important}.d3-welcome h1{font-size:24px!important;margin:0 0 4px!important}.d3-welcome span{color:var(--muted)!important;font-size:14px!important}
+.d3-search{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;background:#fff!important;border:1px solid var(--line)!important;padding:8px!important;border-radius:16px!important;box-shadow:var(--shadow)!important}
+.d3-search input{min-width:0!important;width:100%!important;border:0!important;padding:12px!important;font-size:15px!important;outline:none!important}
+.d3-search button{padding:11px 16px!important;border-radius:12px!important;background:#e9f6f5!important;color:var(--primary2)!important;border:0!important;font-weight:800!important}
+.d3-panel{box-shadow:var(--shadow)!important;border:1px solid var(--line)!important}
+.d3-actions button{border-color:var(--primary)!important;color:var(--primary)!important}
+@media(max-width:430px){.d3-search{grid-template-columns:minmax(0,1fr) 86px!important}.d3-search input{font-size:14px!important;padding:10px 7px!important}.d3-search button{padding:10px 8px!important}.d3-welcome h1{font-size:21px!important}}

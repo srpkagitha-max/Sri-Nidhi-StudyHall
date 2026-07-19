@@ -1,12 +1,8 @@
-Sri Nidhi Study Hall ERP v2.2
+Sri Nidhi Study Hall v2.3
+- Unified teal branding
+- New teal PWA icons: 192px, 512px, Apple touch icon, favicon
+- Service worker cache upgraded to v2.3
+- Design 3 dashboard simplified
+- Mobile search layout fixed
 
-Build 1 Foundation update:
-- Clean Home navigation without decorative symbols
-- Student IDs standardized as SN0001, SN0002...
-- Student search supports name, ID, phone, parent, course and batch
-- Student add, edit, delete and profile retained
-- Seat number is optional and not treated as a primary workflow
-- Existing localStorage database key retained to protect saved data
-- GitHub Pages and mobile/PWA compatible
-
-Demo login: admin / 1234
+After upload, uninstall the old Home Screen app once, open ?v=230 in Chrome, then Add to Home screen again to force Android to use the new icon.
