@@ -3,13 +3,13 @@ const defaultDB={
  meta:{schemaVersion:2,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},
  settings:{hallName:'Sri Nidhi Study Hall',monthlyFee:1500,feeDueDay:10,adminUser:'admin',adminPass:'1234'},
  students:[
-  {id:'SN001',name:'Anusha',gender:'Female',dob:'',phone:'9876543210',parentName:'',parentPhone:'9123456780',emergencyPhone:'',address:'',course:'DSC',batch:'Morning',seat:'G-01',joinDate:'2026-07-01',monthlyFee:1500,idProof:'',status:'Active',photo:''},
-  {id:'SN002',name:'Kavya',gender:'Female',dob:'',phone:'9876501234',parentName:'',parentPhone:'9012345678',emergencyPhone:'',address:'',course:'TET',batch:'Morning',seat:'G-02',joinDate:'2026-07-03',monthlyFee:1500,idProof:'',status:'Active',photo:''},
-  {id:'SN003',name:'Ramesh',gender:'Male',dob:'',phone:'9866001122',parentName:'',parentPhone:'9000011111',emergencyPhone:'',address:'',course:'Police',batch:'Evening',seat:'B-01',joinDate:'2026-07-05',monthlyFee:1500,idProof:'',status:'Active',photo:''}
+  {id:'SN0001',name:'Anusha',gender:'Female',dob:'',phone:'9876543210',parentName:'',parentPhone:'9123456780',emergencyPhone:'',address:'',course:'DSC',batch:'Morning',seat:'G-01',joinDate:'2026-07-01',monthlyFee:1500,idProof:'',status:'Active',photo:''},
+  {id:'SN0002',name:'Kavya',gender:'Female',dob:'',phone:'9876501234',parentName:'',parentPhone:'9012345678',emergencyPhone:'',address:'',course:'TET',batch:'Morning',seat:'G-02',joinDate:'2026-07-03',monthlyFee:1500,idProof:'',status:'Active',photo:''},
+  {id:'SN0003',name:'Ramesh',gender:'Male',dob:'',phone:'9866001122',parentName:'',parentPhone:'9000011111',emergencyPhone:'',address:'',course:'Police',batch:'Evening',seat:'B-01',joinDate:'2026-07-05',monthlyFee:1500,idProof:'',status:'Active',photo:''}
  ],
  fees:[
-  {id:uid(),studentId:'SN001',month:'2026-07',amount:1500,paid:1500,date:'2026-07-05',mode:'UPI',receipt:'RC001'},
-  {id:uid(),studentId:'SN002',month:'2026-07',amount:1500,paid:500,date:'2026-07-06',mode:'Cash',receipt:'RC002'}
+  {id:uid(),studentId:'SN0001',month:'2026-07',amount:1500,paid:1500,date:'2026-07-05',mode:'UPI',receipt:'RC001'},
+  {id:uid(),studentId:'SN0002',month:'2026-07',amount:1500,paid:500,date:'2026-07-06',mode:'Cash',receipt:'RC002'}
  ], attendance:[], movements:[], audit:[]
 };
 let db=loadDB(), currentPage='dashboard';
@@ -78,7 +78,7 @@ function renderDashboard(){
  ${late?`<button class="d3-alert" onclick="render('movement')"><span>Late return requires attention</span><b>${late}</b></button>`:''}
 
  <div class="d3-search">
-   <input id="dashboardSearch" placeholder="Search student by name, ID, phone or seat">
+   <input id="dashboardSearch" placeholder="Search student by name, ID, phone or parent name">
    <button onclick="dashboardStudentSearch()">Search</button>
  </div>
 
@@ -116,11 +116,11 @@ function renderDashboard(){
 
 function overviewRow(label,value){return `<div class="d3-row"><span>${label}</span><b>${value}</b></div>`}
 function importantRow(label,value,page){return `<button class="d3-row d3-row-button" onclick="render('${page}')"><span>${label}</span><b>${value}</b></button>`}
-window.dashboardStudentSearch=function(){const q=(el('dashboardSearch')?.value||'').trim().toLowerCase();if(!q)return alert('Student name, ID, phone లేదా seat enter చేయండి');const s=db.students.find(x=>[x.id,x.name,x.phone,x.parentPhone,x.seat].join(' ').toLowerCase().includes(q));if(!s)return alert('Student not found');viewStudent(s.id)}
+window.dashboardStudentSearch=function(){const q=(el('dashboardSearch')?.value||'').trim().toLowerCase();if(!q)return alert('Student name, ID, phone లేదా parent name enter చేయండి');const s=db.students.find(x=>[x.id,x.name,x.phone,x.parentName,x.parentPhone,x.course,x.batch].join(' ').toLowerCase().includes(q));if(!s)return alert('Student not found');viewStudent(s.id)}
 
-function renderStudents(){el('pageContent').innerHTML=`<div class="card"><div class="toolbar"><input id="studentSearch" placeholder="Search name / phone / ID / seat"><select id="genderFilter"><option value="">All</option><option>Female</option><option>Male</option></select><button class="primary" onclick="showStudentForm()">+ Add Student</button></div><div id="studentsTable"></div></div>`;el('studentSearch').oninput=drawStudents;el('genderFilter').onchange=drawStudents;drawStudents()}
+function renderStudents(){el('pageContent').innerHTML=`<div class="card"><div class="toolbar"><input id="studentSearch" placeholder="Search name / phone / ID / parent"><select id="genderFilter"><option value="">All</option><option>Female</option><option>Male</option></select><button class="primary" onclick="showStudentForm()">+ Add Student</button></div><div id="studentsTable"></div></div>`;el('studentSearch').oninput=drawStudents;el('genderFilter').onchange=drawStudents;drawStudents()}
 function avatar(s){return s.photo?`<img class="avatar" src="${s.photo}" alt="">`:`<span class="avatar">${esc((s.name||'?').slice(0,1).toUpperCase())}</span>`}
-function drawStudents(){const q=(el('studentSearch')?.value||'').toLowerCase(),g=el('genderFilter')?.value||'';const list=db.students.filter(s=>(!g||s.gender===g)&&[s.id,s.name,s.phone,s.seat,s.course].join(' ').toLowerCase().includes(q));el('studentsTable').innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th>Student</th><th>ID</th><th>Gender</th><th>Phone</th><th>Course / Batch</th><th>Seat</th><th>Fee</th><th>Status</th><th>Actions</th></tr></thead><tbody>${list.map(s=>`<tr><td><div class="student-name">${avatar(s)}<b>${esc(s.name)}</b></div></td><td>${esc(s.id)}</td><td>${esc(s.gender)}</td><td>${esc(s.phone)}</td><td>${esc(s.course||'-')} / ${esc(s.batch||'-')}</td><td>${esc(s.seat||'-')}</td><td>${money(hallFee(s))}</td><td><span class="badge ${s.status==='Inactive'?'absent':'present'}">${esc(s.status||'Active')}</span></td><td><button class="secondary" onclick="viewStudent('${s.id}')">View</button> <button class="secondary" onclick="editStudent('${s.id}')">Edit</button> <button class="danger" onclick="deleteStudent('${s.id}')">Delete</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No students found</div>'}
+function drawStudents(){const q=(el('studentSearch')?.value||'').toLowerCase(),g=el('genderFilter')?.value||'';const list=db.students.filter(s=>(!g||s.gender===g)&&[s.id,s.name,s.phone,s.parentName,s.parentPhone,s.course,s.batch].join(' ').toLowerCase().includes(q));el('studentsTable').innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th>Student</th><th>ID</th><th>Gender</th><th>Phone</th><th>Course / Batch</th><th>Parent</th><th>Fee</th><th>Status</th><th>Actions</th></tr></thead><tbody>${list.map(s=>`<tr><td><div class="student-name">${avatar(s)}<b>${esc(s.name)}</b></div></td><td>${esc(s.id)}</td><td>${esc(s.gender)}</td><td>${esc(s.phone)}</td><td>${esc(s.course||'-')} / ${esc(s.batch||'-')}</td><td>${esc(s.parentName||'-')}</td><td>${money(hallFee(s))}</td><td><span class="badge ${s.status==='Inactive'?'absent':'present'}">${esc(s.status||'Active')}</span></td><td><button class="secondary" onclick="viewStudent('${s.id}')">View</button> <button class="secondary" onclick="editStudent('${s.id}')">Edit</button> <button class="danger" onclick="deleteStudent('${s.id}')">Delete</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No students found</div>'}
 
 function renderAdmissions(){el('pageContent').innerHTML=`<div class="card"><h3>New Student Admission</h3>${studentForm()}</div>`;bindStudentForm()}
 function studentForm(s={}){return `<form id="studentForm" class="form-grid">
@@ -140,7 +140,7 @@ function studentForm(s={}){return `<form id="studentForm" class="form-grid">
 <div class="section-title">Study Hall Details</div>
 <div class="field"><label>Course / Exam</label><input name="course" value="${esc(s.course||'')}"></div>
 <div class="field"><label>Batch / Timing</label><input name="batch" value="${esc(s.batch||'')}"></div>
-<div class="field"><label>Seat Number</label><input name="seat" value="${esc(s.seat||'')}"></div>
+<div class="field"><label>Seat Number (Optional)</label><input name="seat" value="${esc(s.seat||'')}"></div>
 <div class="field"><label>Joining Date</label><input type="date" name="joinDate" value="${esc(s.joinDate||today())}"></div>
 <div class="field"><label>Monthly Fee</label><input type="number" name="monthlyFee" value="${hallFee(s)}"></div>
 <div class="field"><label>ID Proof / Aadhaar (Optional)</label><input name="idProof" value="${esc(s.idProof||'')}"></div>
@@ -149,11 +149,11 @@ function studentForm(s={}){return `<form id="studentForm" class="form-grid">
 <div class="span-3 actions"><button class="primary" type="submit">Save Student</button><button type="button" class="secondary" onclick="render('students')">Cancel</button></div>
 </form>`}
 function bindStudentForm(editId=null){const form=el('studentForm'),photo=el('photoInput'),preview=el('photoPreview');if(photo)photo.onchange=()=>{const file=photo.files[0];if(!file)return;if(file.size>800000)return alert('Photo size 800 KB లోపు ఉండాలి.');const r=new FileReader();r.onload=()=>{form.elements.photo.value=r.result;preview.src=r.result};r.readAsDataURL(file)};form.onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(form));o.monthlyFee=Number(o.monthlyFee||db.settings.monthlyFee);if(!/^\d{10}$/.test(o.phone.replace(/\D/g,'')))return alert('Student phone number 10 digits enter చేయండి');if(editId){db.students=db.students.map(s=>s.id===editId?o:s)}else{if(db.students.some(s=>s.id===o.id))return alert('Student ID already exists');db.students.push(o)}saveDB();closeModal();render('students');alert('Student saved successfully')}}
-function nextStudentId(){let n=1;while(db.students.some(s=>s.id===`SN${String(n).padStart(3,'0')}`))n++;return `SN${String(n).padStart(3,'0')}`}
+function nextStudentId(){let n=1;while(db.students.some(s=>s.id===`SN${String(n).padStart(4,'0')}`))n++;return `SN${String(n).padStart(4,'0')}`}
 window.showStudentForm=()=>{openModal(`<h3>Add Student</h3>${studentForm()}`);bindStudentForm()};
 window.editStudent=id=>{const s=db.students.find(x=>x.id===id);openModal(`<h3>Edit Student</h3>${studentForm(s)}`);bindStudentForm(id)};
 window.viewStudent=id=>{const s=db.students.find(x=>x.id===id);openModal(`<h3>Student Profile</h3><div class="student-name">${avatar(s)}<div><h2 style="margin:0">${esc(s.name)}</h2><span class="muted">${esc(s.id)}</span></div></div><div class="card"><div class="form-grid"><div><b>Phone</b><p>${esc(s.phone||'-')}</p></div><div><b>Parent</b><p>${esc(s.parentName||'-')} / ${esc(s.parentPhone||'-')}</p></div><div><b>Course</b><p>${esc(s.course||'-')}</p></div><div><b>Batch</b><p>${esc(s.batch||'-')}</p></div><div><b>Seat</b><p>${esc(s.seat||'-')}</p></div><div><b>Monthly Fee</b><p>${money(hallFee(s))}</p></div><div class="span-3"><b>Address</b><p>${esc(s.address||'-')}</p></div></div></div>`)};
-window.deleteStudent=id=>{if(confirm('Delete this student?')){db.students=db.students.filter(s=>s.id!==id);saveDB();drawStudents()}};
+window.deleteStudent=id=>{const s=db.students.find(x=>x.id===id);if(!s)return;if(confirm(`Delete ${s.name}? Fee, attendance and movement history will remain in reports.`)){db.students=db.students.filter(x=>x.id!==id);logAction('student_deleted',`${s.id} - ${s.name} deleted`);saveDB();drawStudents()}};
 
 function studentOptions(){return db.students.filter(s=>s.status!=='Inactive').map(s=>`<option value="${s.id}">${esc(s.id)} - ${esc(s.name)}</option>`).join('')}
 function renderFees(){el('pageContent').innerHTML=`<div class="card"><h3>Add Fee Payment</h3><form id="feeForm" class="form-grid"><div class="field"><label>Student</label><select id="feeStudent" name="studentId" required>${studentOptions()}</select></div><div class="field"><label>Month</label><input type="month" name="month" value="${monthNow()}" required></div><div class="field"><label>Monthly Fee</label><input id="feeAmount" type="number" name="amount" value="${db.settings.monthlyFee}" required></div><div class="field"><label>Paid Amount</label><input type="number" name="paid" required></div><div class="field"><label>Payment Date</label><input type="date" name="date" value="${today()}" required></div><div class="field"><label>Payment Mode</label><select name="mode"><option>Cash</option><option>UPI</option><option>Bank</option></select></div><div class="span-3"><button class="primary">Save Payment</button></div></form></div><div class="card"><h3>Payment History</h3><div id="feeTable"></div></div>`;el('feeStudent').onchange=()=>{el('feeAmount').value=hallFee(db.students.find(s=>s.id===el('feeStudent').value))};el('feeStudent').dispatchEvent(new Event('change'));el('feeForm').onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target));o.id=uid();o.amount=Number(o.amount);o.paid=Number(o.paid);o.receipt='RC'+String(db.fees.length+1).padStart(4,'0');if(o.paid<=0||o.paid>o.amount)return alert('Paid amount సరైనదిగా నమోదు చేయండి');db.fees.push(o);logAction('fee_paid',`Fee received: ${studentName(o.studentId)} - ${money(o.paid)}`);saveDB();renderFees();alert('Fee payment saved')};drawFees()}
