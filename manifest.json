@@ -1,0 +1,9 @@
+{
+  "name":"Sri Nidhi Study Hall Management System",
+  "short_name":"Sri Nidhi",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#f4f7fb",
+  "theme_color":"#111a35",
+  "icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
