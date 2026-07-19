@@ -1,9 +1,7 @@
-Sri Nidhi Study Hall v1.4.1 CACHE FIX
+Sri Nidhi Study Hall v2.0 - Design 3
 
-Important:
-1. Upload/replace ALL files in the GitHub repository root.
-2. Commit changes.
-3. Open the site once with ?v=141 added to the URL.
-4. A small v1.4.1 badge should appear at the bottom-right.
+Simple dashboard redesign selected by the user.
+No dashboard symbols or emoji.
+Files: index.html, style.css, app.js, manifest.json, service-worker.js, icon.svg
 
-This release fixes the old v1.3 service-worker cache that caused the v1.4 upload to keep showing the previous dashboard.
+Upload and replace all files in the GitHub repository, then commit changes.

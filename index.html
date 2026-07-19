@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#111a35" />
   <title>Sri Nidhi Study Hall</title>
-  <link rel="stylesheet" href="style.css?v=1.5.0" />
+  <link rel="stylesheet" href="style.css?v=2.0.0" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -58,10 +58,10 @@
 
   <div id="modal" class="modal hidden"><div class="modal-box"><button id="modalClose" class="modal-close">×</button><div id="modalBody"></div></div></div>
   <script>
-(async()=>{try{if("caches" in window){for(const k of await caches.keys()){if(!k.includes("v1.5"))await caches.delete(k)}}if("serviceWorker" in navigator){const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.update()}}catch(e){console.warn(e)}})();
+(async()=>{try{if("caches" in window){for(const k of await caches.keys()){if(!k.includes("v2.0"))await caches.delete(k)}}if("serviceWorker" in navigator){const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.update()}}catch(e){console.warn(e)}})();
 </script>
-<script src="app.js?v=1.5.0"></script>
-  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=1.5.0", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
-<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#64748b;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v1.5</div>
+<script src="app.js?v=2.0.0"></script>
+  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=2.0.0", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
+<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#64748b;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v2.0</div>
 </body>
 </html>

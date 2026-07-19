@@ -23,3 +23,42 @@
 /* v1.5 compact dashboard */
 .compact-head .hero{padding:22px 24px}.compact-head .hero h1{font-size:26px;margin:2px 0 4px}.compact-head .hero p{margin:0}.compact-stats .stat{min-height:126px;padding:16px}.compact-stats .stat-icon{width:36px;height:36px;font-size:17px}.compact-stats .value{font-size:26px}.compact-stats .label{font-size:13px}.compact-card{margin-top:14px}.compact-actions{grid-template-columns:repeat(4,1fr)}.compact-actions .quick-action{justify-content:center;flex-direction:column;text-align:center;padding:12px 8px;gap:7px}.compact-actions .quick-action b{width:30px;height:30px;font-size:17px}.compact-list{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.compact-list .quick-item{margin:0}.compact-empty{min-height:90px}.content>.card#importantPanel{display:block!important}
 @media(max-width:760px){.compact-head .notification-btn{display:none}.compact-head .hero{padding:17px 16px}.compact-head .hero h1{font-size:21px}.compact-head .hero p{font-size:12px}.compact-stats .stat{min-height:112px;padding:13px}.compact-stats .stat-icon{width:31px;height:31px;font-size:15px}.compact-stats .value{font-size:22px}.compact-stats .stat-sub{font-size:10px}.compact-actions{grid-template-columns:repeat(4,1fr)}.compact-actions .quick-action{font-size:11px;padding:10px 4px}.compact-actions .quick-action b{width:28px;height:28px}.compact-list{grid-template-columns:1fr 1fr}.compact-list .quick-item{padding:11px 10px;font-size:13px}}
+
+/* v2.0 Design 3 — simple dashboard */
+:root{--d3:#0f7f7a;--d3-dark:#0b6662;--d3-soft:#edf9f7;--d3-line:#dce8e7}
+.content{max-width:980px;margin:0 auto}
+.d3-welcome{background:linear-gradient(135deg,#0f706d,#19958f);color:#fff;border-radius:18px;padding:22px 24px;margin-bottom:16px;box-shadow:0 10px 28px rgba(15,127,122,.16)}
+.d3-welcome p{margin:0 0 7px;font-size:10px;letter-spacing:1.4px;font-weight:800;opacity:.78}
+.d3-welcome h1{margin:0 0 5px;font-size:25px;line-height:1.2}
+.d3-welcome span{font-size:13px;opacity:.88}
+.d3-search{display:flex;gap:8px;background:#fff;border:1px solid var(--d3-line);padding:7px;border-radius:14px;margin-bottom:16px;box-shadow:0 5px 18px rgba(24,50,70,.05)}
+.d3-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;padding:8px 10px;color:var(--text)}
+.d3-search button{border:0;border-radius:10px;background:var(--d3-soft);color:var(--d3-dark);font-weight:800;padding:9px 15px}
+.d3-panel{background:#fff;border:1px solid var(--d3-line);border-radius:16px;padding:5px 17px;margin-bottom:17px;box-shadow:0 6px 20px rgba(24,50,70,.045)}
+.d3-overview{background:linear-gradient(180deg,#f4fcfb,#fff)}
+.d3-section{margin-bottom:18px}
+.d3-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0 10px}
+.d3-section-head h3{margin:0;font-size:17px;color:#123638}
+.d3-section-head>span{font-size:11px;color:var(--muted)}
+.d3-section-head button{border:0;background:transparent;color:var(--d3);font-weight:800;padding:4px}
+.d3-row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 0;border-top:1px solid var(--d3-line);font-size:14px}
+.d3-row span{color:#344b50}
+.d3-row b{font-size:16px;color:#112e32}
+.d3-row-button{border-right:0;border-bottom:0;border-left:0;background:transparent;text-align:left;cursor:pointer}
+.d3-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.d3-actions button{min-height:49px;border:1px solid var(--d3);border-radius:12px;background:#fff;color:var(--d3-dark);font-weight:800;padding:12px}
+.d3-actions button:active{background:var(--d3-soft)}
+.d3-alert{width:100%;display:flex;justify-content:space-between;border:1px solid #e7c9c9;background:#fff7f7;color:#8b2525;border-radius:13px;padding:12px 14px;margin-bottom:14px;font-weight:700}
+.d3-activity{padding-bottom:12px}
+.d3-activity-list>div{display:flex;flex-direction:column;gap:3px;padding:12px 0;border-top:1px solid var(--d3-line)}
+.d3-activity-list b{font-size:13px}.d3-activity-list span{font-size:11px;color:var(--muted)}
+.d3-empty{text-align:center;color:var(--muted);padding:34px 10px 38px;border-top:1px solid var(--d3-line)}
+@media(max-width:520px){
+ .content{padding:14px 12px 82px}
+ .d3-welcome{padding:19px 18px;border-radius:16px}
+ .d3-welcome h1{font-size:22px}
+ .d3-panel{padding:4px 15px;border-radius:15px}
+ .d3-actions{grid-template-columns:1fr}
+ .d3-actions button{min-height:48px}
+ .d3-row{padding:14px 0}
+}
