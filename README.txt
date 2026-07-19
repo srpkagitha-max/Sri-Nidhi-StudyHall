@@ -1,4 +1,4 @@
-Sri Nidhi Study Hall ERP v2.1
+Sri Nidhi Study Hall ERP v2.2
 
 Build 1 Foundation update:
 - Clean Home navigation without decorative symbols

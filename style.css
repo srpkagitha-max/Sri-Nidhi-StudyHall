@@ -62,3 +62,53 @@
  .d3-actions button{min-height:48px}
  .d3-row{padding:14px 0}
 }
+
+/* v2.2 FINAL THEME — Teal + White + Light Grey across the full application */
+:root{
+  --bg:#f4f8f8;
+  --card:#ffffff;
+  --text:#173638;
+  --muted:#6f8587;
+  --primary:#0f7f7a;
+  --primary2:#0b6662;
+  --line:#dce8e7;
+  --shadow:0 8px 24px rgba(20,76,76,.08);
+}
+html,body{background:var(--bg)}
+.login-wrap{background:linear-gradient(145deg,#eef9f8,#f8fbfb)}
+.login-card{border:1px solid var(--line);box-shadow:0 14px 38px rgba(15,127,122,.10)}
+.logo,.brand-logo{background:linear-gradient(135deg,#0f7f7a,#159a93);box-shadow:none}
+.login-card input,.field input,.field select,.field textarea,.toolbar input,.toolbar select{border-color:var(--line);background:#fff}
+.login-card input:focus,.field input:focus,.field select:focus,.field textarea:focus,.toolbar input:focus,.toolbar select:focus{outline:2px solid #bfe5e2;border-color:var(--primary)}
+.sidebar{background:#0b5f5c}
+.brand span{color:#c9e5e3}
+.sidebar nav button,.logout{color:#e5f2f1}
+.sidebar nav button:hover,.sidebar nav button.active{background:rgba(255,255,255,.14);color:#fff}
+.logout{background:rgba(94,26,36,.24);color:#ffe0e4}
+.topbar{background:#fff;border-color:var(--line)}
+.menu-btn,.admin-chip{background:var(--d3-soft);color:var(--primary2)}
+.hero,.dashboard-head .hero,.quick-action.primary{background:linear-gradient(135deg,#0f706d,#19958f)}
+.card,.stat,.modal-box{border-color:var(--line);box-shadow:var(--shadow)}
+.primary{background:var(--primary)}
+.primary:hover{background:var(--primary2)}
+.secondary{background:#edf5f4;color:#244d4e}
+.success{background:#e5f5ee;color:#176b4c}
+.section-title{color:#1d5758}
+th{background:#f3f9f8;color:#35595a}
+.avatar,.photo-preview,.profile-photo{background:#eaf7f6;color:var(--primary)}
+.returned{background:#e5f5f3;color:#176c68}
+.timeline-item,.notice-card{background:#f4fbfa}
+.dashboard-search button,.d3-search button{background:#e8f6f4;color:var(--primary2)}
+.stat-icon,.stat-blue .stat-icon,.stat-pink .stat-icon,.stat-indigo .stat-icon,.stat-green .stat-icon,.stat-orange .stat-icon,.stat-teal .stat-icon,.stat-red .stat-icon,.stat-purple .stat-icon,.stat-slate .stat-icon{background:#e7f5f3;color:var(--primary2)}
+.quick-action{background:#eef7f6;color:#244f50}
+.text-btn{color:var(--primary)}
+.table-wrap{border-color:var(--line)}
+.d3-welcome{background:linear-gradient(135deg,#0f706d,#19958f)}
+.d3-actions button{border-color:var(--primary);color:var(--primary2)}
+.d3-panel,.d3-search{border-color:var(--line)}
+@media(max-width:760px){
+  .sidebar{width:min(82vw,290px)}
+  .login-card{padding:24px 20px}
+  .login-card h1{font-size:29px;line-height:1.15}
+  .dashboard-search input,.d3-search input{font-size:15px}
+}

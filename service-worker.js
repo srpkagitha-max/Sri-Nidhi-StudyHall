@@ -1,4 +1,4 @@
-const CACHE="sri-nidhi-v2.1";
+const CACHE="sri-nidhi-v2.2";
 const ASSETS=["./","./index.html","./style.css?v=2.1.0","./app.js?v=2.1.0","./manifest.json","./icon.svg"];
 self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener("activate",e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k!==CACHE)await caches.delete(k);await self.clients.claim()})()));

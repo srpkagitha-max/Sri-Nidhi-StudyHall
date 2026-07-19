@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#111a35" />
+  <meta name="theme-color" content="#0f7f7a" />
   <title>Sri Nidhi Study Hall</title>
   <link rel="stylesheet" href="style.css?v=2.1.0" />
   <link rel="manifest" href="manifest.json" />
@@ -58,10 +58,10 @@
 
   <div id="modal" class="modal hidden"><div class="modal-box"><button id="modalClose" class="modal-close">×</button><div id="modalBody"></div></div></div>
   <script>
-(async()=>{try{if("caches" in window){for(const k of await caches.keys()){if(!k.includes("v2.1"))await caches.delete(k)}}if("serviceWorker" in navigator){const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.update()}}catch(e){console.warn(e)}})();
+(async()=>{try{if("caches" in window){for(const k of await caches.keys()){if(!k.includes("v2.2"))await caches.delete(k)}}if("serviceWorker" in navigator){const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.update()}}catch(e){console.warn(e)}})();
 </script>
 <script src="app.js?v=2.1.0"></script>
   <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=2.1.0", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
-<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#64748b;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v2.1</div>
+<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v2.2</div>
 </body>
 </html>
