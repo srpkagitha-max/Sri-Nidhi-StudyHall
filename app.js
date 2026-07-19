@@ -54,19 +54,50 @@ function closeModal(){el('modal').classList.add('hidden');el('modalBody').innerH
 
 function render(page){currentPage=page;document.querySelectorAll('#navMenu button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));const titles={dashboard:'Dashboard',students:'Students',admissions:'Admissions',fees:'Fees',pending:'Pending Fees',attendance:'Attendance',movement:'Entry / Exit',notices:'Notices',diary:'Daily Diary',reports:'Reports',settings:'Settings'};el('pageTitle').textContent=titles[page]||page;el('sideHallName').textContent=db.settings.hallName.replace(/Study Hall/i,'').trim()||'Sri Nidhi';({dashboard:renderDashboard,students:renderStudents,admissions:renderAdmissions,fees:renderFees,pending:renderPending,attendance:renderAttendance,movement:renderMovement,notices:renderNotices,diary:renderDiary,reports:renderReports,settings:renderSettings}[page]||renderDashboard)()}
 
-function renderDashboard(){const active=db.students.filter(s=>s.status!=='Inactive');const females=active.filter(s=>s.gender==='Female').length;const present=db.attendance.filter(a=>a.date===today()&&a.status==='Present').length;const outsideList=db.movements.filter(m=>m.status==='Outside');const late=outsideList.filter(isLateMovement).length;const month=monthNow();const collection=db.fees.filter(f=>f.month===month).reduce((a,f)=>a+Number(f.paid||0),0);const pending=getPending(month).reduce((a,x)=>a+x.balance,0);const activities=(db.audit||[]).slice(0,6);el('pageContent').innerHTML=`
-<div class="hero"><h1>${esc(db.settings.hallName)}</h1><p>Student Management, Fees & Security Dashboard</p></div>
-${late?`<div class="alert-danger"><b>⚠️ Late Return Alert:</b> ${late} student(s) expected return time దాటింది.</div>`:''}
-<div class="grid stats">
-<div class="stat"><div class="label">Total Students</div><div class="value">${active.length}</div></div>
-<div class="stat"><div class="label">Girls</div><div class="value">${females}</div></div>
-<div class="stat"><div class="label">Present Today</div><div class="value">${present}</div></div>
-<div class="stat"><div class="label">Currently Outside</div><div class="value">${outsideList.length}</div></div>
-<div class="stat"><div class="label">This Month Collection</div><div class="value">${money(collection)}</div></div>
-<div class="stat"><div class="label">Pending Amount</div><div class="value">${money(pending)}</div></div>
-</div>
-<div class="two-col"><div class="card"><h3>Quick Actions</h3><div class="actions"><button class="primary" onclick="render('admissions')">+ New Admission</button><button class="secondary" onclick="render('fees')">Add Fee</button><button class="secondary" onclick="render('attendance')">Attendance</button><button class="secondary" onclick="render('movement')">Entry / Exit</button></div></div><div class="card"><h3>Important</h3><div class="quick-list"><div class="quick-item"><span>Fee Pending Students</span><b>${getPending(month).length}</b></div><div class="quick-item"><span>Outside Students</span><b>${outsideList.length}</b></div><div class="quick-item"><span>Late Returns</span><b>${late}</b></div></div></div></div>
-<div class="card"><h3>Recent Activity</h3>${activities.length?`<div class="timeline">${activities.map(a=>`<div class="timeline-item"><b>${esc(a.details)}</b><span>${new Date(a.time).toLocaleString('en-IN')}</span></div>`).join('')}</div>`:'<div class="empty">No activity yet</div>'}</div>`}
+function updateLiveClock(){const clock=el('liveClock');if(clock)clock.textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+function renderDashboard(){
+ const active=db.students.filter(s=>s.status!=='Inactive');
+ const females=active.filter(s=>s.gender==='Female').length;
+ const males=active.filter(s=>s.gender==='Male').length;
+ const present=db.attendance.filter(a=>a.date===today()&&a.status==='Present').length;
+ const absent=db.attendance.filter(a=>a.date===today()&&a.status==='Absent').length;
+ const outsideList=db.movements.filter(m=>m.status==='Outside');
+ const late=outsideList.filter(isLateMovement).length;
+ const month=monthNow();
+ const collection=db.fees.filter(f=>f.month===month).reduce((a,f)=>a+Number(f.paid||0),0);
+ const pendingList=getPending(month);
+ const pending=pendingList.reduce((a,x)=>a+x.balance,0);
+ const newAdmissions=active.filter(s=>String(s.joinDate||'').startsWith(month)).length;
+ const todayMovements=db.movements.filter(m=>String(m.outTime||'').startsWith(today())).length;
+ const notices=(db.notices||[]).filter(n=>n.priority==='Urgent').length;
+ const activities=(db.audit||[]).slice(0,6);
+ el('pageContent').innerHTML=`
+ <div class="dashboard-head">
+   <div class="hero"><div><span class="eyebrow">WELCOME BACK</span><h1>${esc(db.settings.hallName)}</h1><p>Student Management, Fees & Security Dashboard</p></div><div class="hero-clock"><span>Live Time</span><b id="liveClock"></b></div></div>
+   <button class="notification-btn" onclick="render('notices')" aria-label="Notifications">🔔${notices?`<span>${notices}</span>`:''}</button>
+ </div>
+ ${late?`<div class="alert-danger"><b>⚠️ Late Return Alert:</b> ${late} student(s) expected return time దాటింది. <button onclick="render('movement')">View</button></div>`:''}
+ <div class="dashboard-search"><span>🔎</span><input id="dashboardSearch" placeholder="Search student by name, ID, phone or seat"><button onclick="dashboardStudentSearch()">Search</button></div>
+ <div class="grid stats premium-stats">
+   ${statCard('👨‍🎓','Total Students',active.length,'All active students','blue')}
+   ${statCard('👩','Girls',females,'Female students','pink')}
+   ${statCard('👨','Boys',males,'Male students','indigo')}
+   ${statCard('✅','Present Today',present,absent?`${absent} absent today`:'Attendance status','green')}
+   ${statCard('🚶','Currently Outside',outsideList.length,late?`${late} late return`:'Movement status','orange')}
+   ${statCard('💰','This Month Collection',money(collection),'Fee received','teal')}
+   ${statCard('⏳','Pending Amount',money(pending),`${pendingList.length} students pending`,'red')}
+   ${statCard('📝','New Admissions',newAdmissions,'This month','purple')}
+   ${statCard('↔️','Today Entries / Exits',todayMovements,'Movement records','slate')}
+ </div>
+ <div class="two-col dashboard-panels">
+   <div class="card"><div class="card-title-row"><h3>Quick Actions</h3><span>Daily work</span></div><div class="quick-action-grid"><button class="quick-action primary" onclick="render('admissions')"><b>＋</b><span>New Admission</span></button><button class="quick-action" onclick="render('fees')"><b>₹</b><span>Add Fee</span></button><button class="quick-action" onclick="render('attendance')"><b>✓</b><span>Attendance</span></button><button class="quick-action" onclick="render('movement')"><b>↔</b><span>Entry / Exit</span></button></div></div>
+   <div class="card"><div class="card-title-row"><h3>Important</h3><span>Needs attention</span></div><div class="quick-list"><div class="quick-item clickable" onclick="render('pending')"><span>Fee Pending Students</span><b>${pendingList.length}</b></div><div class="quick-item clickable" onclick="render('movement')"><span>Outside Students</span><b>${outsideList.length}</b></div><div class="quick-item clickable" onclick="render('movement')"><span>Late Returns</span><b>${late}</b></div><div class="quick-item clickable" onclick="render('notices')"><span>Urgent Notices</span><b>${notices}</b></div></div></div>
+ </div>
+ <div class="card"><div class="card-title-row"><h3>Recent Activity</h3><button class="text-btn" onclick="render('reports')">Reports →</button></div>${activities.length?`<div class="timeline">${activities.map(a=>`<div class="timeline-item"><i></i><div><b>${esc(a.details)}</b><span>${new Date(a.time).toLocaleString('en-IN')}</span></div></div>`).join('')}</div>`:'<div class="empty">No activity yet</div>'}</div>`;
+ updateLiveClock();clearInterval(window._liveClockTimer);window._liveClockTimer=setInterval(updateLiveClock,1000);
+}
+function statCard(icon,label,value,sub,tone){return `<div class="stat stat-${tone}"><div class="stat-top"><span class="stat-icon">${icon}</span><span class="stat-arrow">↗</span></div><div class="label">${label}</div><div class="value">${value}</div><div class="stat-sub">${sub}</div></div>`}
+window.dashboardStudentSearch=function(){const q=(el('dashboardSearch')?.value||'').trim().toLowerCase();if(!q)return alert('Student name, ID, phone లేదా seat enter చేయండి');const s=db.students.find(x=>[x.id,x.name,x.phone,x.parentPhone,x.seat].join(' ').toLowerCase().includes(q));if(!s)return alert('Student not found');viewStudent(s.id)}
 
 function renderStudents(){el('pageContent').innerHTML=`<div class="card"><div class="toolbar"><input id="studentSearch" placeholder="Search name / phone / ID / seat"><select id="genderFilter"><option value="">All</option><option>Female</option><option>Male</option></select><button class="primary" onclick="showStudentForm()">+ Add Student</button></div><div id="studentsTable"></div></div>`;el('studentSearch').oninput=drawStudents;el('genderFilter').onchange=drawStudents;drawStudents()}
 function avatar(s){return s.photo?`<img class="avatar" src="${s.photo}" alt="">`:`<span class="avatar">${esc((s.name||'?').slice(0,1).toUpperCase())}</span>`}

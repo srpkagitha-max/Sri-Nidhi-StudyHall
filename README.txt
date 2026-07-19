@@ -1,24 +1,16 @@
-Sri Nidhi Study Hall Management System v1.3 Stable
+SRI NIDHI STUDY HALL v1.4 STABLE
 
-Demo Login
-Username: admin
-Password: 1234
+NEW IN v1.4
+- Premium mobile dashboard
+- Live clock
+- Global student quick search
+- Boys, girls, new admissions and movement summary cards
+- Notification badge for urgent notices
+- Improved quick actions and recent activity design
+- Late-return direct alert action
 
-New in v1.3
-- Student Master Profile with full fee, attendance and movement history
-- Student Profile PDF
-- Fee balance auto-calculation and overpayment prevention
-- Unique fee receipt number and receipt PDF
-- Attendance date selection, Mark All, daily and monthly PDF reports
-- Notice Board
-- Daily Diary and Daily Closing PDF
-- PWA files for Add to Home Screen
-- Backup supports new data modules
+DEPLOYMENT
+Upload/replace all files in the GitHub repository root, then Commit changes.
+Existing browser data is preserved because the same local database key is used.
 
-GitHub Upload
-Upload/replace all files in the repository root:
-index.html, style.css, app.js, manifest.json, service-worker.js, icon.svg
-
-Important
-This version stores data in the current browser/device using localStorage.
-Cloud sync and secure multi-user login require Firebase configuration in the next cloud milestone.
+Demo login: admin / 1234
