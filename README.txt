@@ -1,16 +1,9 @@
-SRI NIDHI STUDY HALL v1.4 STABLE
+Sri Nidhi Study Hall v1.4.1 CACHE FIX
 
-NEW IN v1.4
-- Premium mobile dashboard
-- Live clock
-- Global student quick search
-- Boys, girls, new admissions and movement summary cards
-- Notification badge for urgent notices
-- Improved quick actions and recent activity design
-- Late-return direct alert action
+Important:
+1. Upload/replace ALL files in the GitHub repository root.
+2. Commit changes.
+3. Open the site once with ?v=141 added to the URL.
+4. A small v1.4.1 badge should appear at the bottom-right.
 
-DEPLOYMENT
-Upload/replace all files in the GitHub repository root, then Commit changes.
-Existing browser data is preserved because the same local database key is used.
-
-Demo login: admin / 1234
+This release fixes the old v1.3 service-worker cache that caused the v1.4 upload to keep showing the previous dashboard.
