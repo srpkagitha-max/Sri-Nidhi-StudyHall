@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="te">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sri Nidhi Study Hall</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <section id="loginView" class="login-wrap">
+    <div class="login-card">
+      <div class="logo">SN</div>
+      <h1>Sri Nidhi Study Hall</h1>
+      <p>Management & Security System</p>
+      <label>Username</label>
+      <input id="loginUser" value="admin" autocomplete="username" />
+      <label>Password</label>
+      <input id="loginPass" type="password" value="1234" autocomplete="current-password" />
+      <button id="loginBtn" class="primary full">Login</button>
+      <small>Demo Login: admin / 1234</small>
+      <div id="loginError" class="error"></div>
+    </div>
+  </section>
+
+  <div id="appView" class="app hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><div class="brand-logo">SN</div><div><b>Sri Nidhi</b><span>Study Hall</span></div></div>
+      <nav id="navMenu">
+        <button data-page="dashboard" class="active">🏠 Dashboard</button>
+        <button data-page="students">👨‍🎓 Students</button>
+        <button data-page="admissions">📝 Admissions</button>
+        <button data-page="fees">💰 Fees</button>
+        <button data-page="pending">📄 Pending Fees</button>
+        <button data-page="attendance">✅ Attendance</button>
+        <button data-page="movement">🚶 Entry / Exit</button>
+        <button data-page="reports">📊 Reports</button>
+        <button data-page="settings">⚙️ Settings</button>
+      </nav>
+      <button id="logoutBtn" class="logout">Logout</button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button id="menuBtn" class="menu-btn">☰</button>
+        <div><h2 id="pageTitle">Dashboard</h2><p id="todayText"></p></div>
+        <div class="admin-chip">Admin</div>
+      </header>
+      <section id="pageContent" class="content"></section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal hidden"><div class="modal-box"><button id="modalClose" class="modal-close">×</button><div id="modalBody"></div></div></div>
+  <script src="app.js"></script>
+</body>
+</html>
