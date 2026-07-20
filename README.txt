@@ -30,3 +30,6 @@ v2.5 Build 4
 
 
 Build 4: paste auto-parse, sample auto-parse, invalid rows retained for correction, live Excel-style validation.
+
+
+v2.5 Build 5: mobile-first preview auto-scroll, editable grid, Add Row, row delete, selection, validation, Save Selected and Save All Valid.
