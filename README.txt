@@ -22,8 +22,11 @@ v2.5 Build 2 Corrected updates:
 - Duplicate checks by ID, Aadhaar and phone
 
 
-v2.5 Build 3
+v2.5 Build 4
 - Excel-style bulk preview
 - Live validation and duplicate highlighting
 - Select rows, Save Selected, Save All Valid
 - Parsed/Valid/Duplicate/Invalid counters
+
+
+Build 4: paste auto-parse, sample auto-parse, invalid rows retained for correction, live Excel-style validation.
