@@ -195,16 +195,40 @@ function renderReports(){el('pageContent').innerHTML=`<div class="grid stats"><d
 
 /* v2.5 Build 2 — Student Master, PDF/Excel/CSV bulk import */
 let studentImportRows=[];
-function renderStudents(){el('pageContent').innerHTML=`
+function uniqueStudentValues(key){return [...new Set(db.students.map(s=>String(s[key]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b))}
+function renderStudents(){const batches=uniqueStudentValues('batch');el('pageContent').innerHTML=`
+<div class="student-summary-grid">
+ <div><b>${db.students.length}</b><span>Total Students</span></div>
+ <div><b>${db.students.filter(s=>(s.status||'Active')==='Active').length}</b><span>Active</span></div>
+ <div><b>${db.students.filter(s=>(s.status||'Active')==='Inactive').length}</b><span>Inactive</span></div>
+ <div><b>${uniqueStudentValues('batch').length}</b><span>Batches</span></div>
+</div>
 <div class="student-actions-grid">
  <button class="student-action-card" onclick="showStudentForm()"><b>Add Single Student</b><span>Enter one student manually</span></button>
  <button class="student-action-card" onclick="openStudentImport('pdf')"><b>Import PDF</b><span>Auto read, preview and bulk save</span></button>
  <button class="student-action-card" onclick="openStudentPaste()"><b>Paste Data Bulk Add</b><span>Paste rows, parse, preview and save</span></button>
  <button class="student-action-card" onclick="openStudentImport('sheet')"><b>Excel / CSV Import</b><span>Upload spreadsheet or CSV file</span></button>
 </div>
-<div class="card"><div class="toolbar"><input id="studentSearch" placeholder="Search name / phone / ID / parent"><select id="genderFilter"><option value="">All</option><option>Female</option><option>Male</option><option>Other</option></select><select id="statusFilter"><option value="">All Status</option><option>Active</option><option>Inactive</option></select></div><div id="studentsTable"></div></div>`;
-el('studentSearch').oninput=drawStudents;el('genderFilter').onchange=drawStudents;el('statusFilter').onchange=drawStudents;drawStudents()}
-function drawStudents(){const q=(el('studentSearch')?.value||'').toLowerCase(),g=el('genderFilter')?.value||'',st=el('statusFilter')?.value||'';const list=db.students.filter(s=>(!g||s.gender===g)&&(!st||(s.status||'Active')===st)&&[s.id,s.name,s.phone,s.parentName,s.parentPhone,s.fatherName,s.motherName,s.course,s.batch,s.aadhaar].join(' ').toLowerCase().includes(q));el('studentsTable').innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th>Student</th><th>ID</th><th>Phone</th><th>Parent</th><th>Joining</th><th>Fee</th><th>Status</th><th>Actions</th></tr></thead><tbody>${list.map(s=>`<tr><td><div class="student-name">${avatar(s)}<div><b>${esc(s.name)}</b><small>${esc(s.course||'-')} / ${esc(s.batch||'-')}</small></div></div></td><td>${esc(s.id)}</td><td>${esc(s.phone||'-')}</td><td>${esc(s.parentName||s.fatherName||'-')}<br><small>${esc(s.parentPhone||s.fatherPhone||'-')}</small></td><td>${esc(s.joinDate||'-')}</td><td>${money(hallFee(s))}</td><td><span class="badge ${(s.status||'Active')==='Inactive'?'absent':'present'}">${esc(s.status||'Active')}</span></td><td><button class="secondary" onclick="viewStudent('${s.id}')">View</button> <button class="secondary" onclick="editStudent('${s.id}')">Edit</button> <button class="danger" onclick="deleteStudent('${s.id}')">Delete</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No students found</div>'}
+<div class="card student-master-card">
+ <div class="student-toolbar">
+  <input id="studentSearch" placeholder="Search name, ID, phone, parent, course, batch, seat or Aadhaar">
+  <select id="batchFilter"><option value="">All Batches</option>${batches.map(x=>`<option>${esc(x)}</option>`).join('')}</select>
+  <select id="statusFilter"><option value="">All Status</option><option>Active</option><option>Inactive</option></select>
+  <select id="genderFilter"><option value="">All Gender</option><option>Female</option><option>Male</option><option>Other</option></select>
+  <button class="secondary" onclick="clearStudentFilters()">Clear</button>
+ </div>
+ <div id="studentResultInfo" class="student-result-info"></div>
+ <div id="studentsTable"></div>
+</div>`;
+['studentSearch','batchFilter','statusFilter','genderFilter'].forEach(id=>{const x=el(id);if(x)x[id==='studentSearch'?'oninput':'onchange']=drawStudents});drawStudents()}
+window.clearStudentFilters=function(){['studentSearch','batchFilter','statusFilter','genderFilter'].forEach(id=>{if(el(id))el(id).value=''});drawStudents()}
+function studentCard(s){return `<article class="student-mobile-card">
+ <div class="student-card-head" onclick="viewStudent('${s.id}')">${avatar(s)}<div><h3>${esc(s.name)}</h3><p>${esc(s.id)} · ${esc(s.course||'No Course')}</p></div><span class="badge ${(s.status||'Active')==='Inactive'?'absent':'present'}">${esc(s.status||'Active')}</span></div>
+ <div class="student-card-details"><span><b>Phone</b>${esc(s.phone||'-')}</span><span><b>Batch</b>${esc(s.batch||'-')}</span><span><b>Seat</b>${esc(s.seat||'-')}</span><span><b>Fee</b>${money(hallFee(s))}</span></div>
+ <div class="student-card-parent"><b>Parent:</b> ${esc(s.parentName||s.fatherName||s.motherName||'-')} ${s.parentPhone||s.fatherPhone?`· ${esc(s.parentPhone||s.fatherPhone)}`:''}</div>
+ <div class="student-card-actions"><button class="secondary" onclick="viewStudent('${s.id}')">View</button><button class="secondary" onclick="editStudent('${s.id}')">Edit</button><button class="danger" onclick="deleteStudent('${s.id}')">Delete</button></div>
+ </article>`}
+function drawStudents(){const q=(el('studentSearch')?.value||'').trim().toLowerCase(),g=el('genderFilter')?.value||'',st=el('statusFilter')?.value||'',batch=el('batchFilter')?.value||'';const list=db.students.filter(s=>(!g||s.gender===g)&&(!st||(s.status||'Active')===st)&&(!batch||(s.batch||'')===batch)&&[s.id,s.name,s.phone,s.parentName,s.parentPhone,s.fatherName,s.fatherPhone,s.motherName,s.motherPhone,s.course,s.batch,s.seat,s.aadhaar,s.address].join(' ').toLowerCase().includes(q));const info=el('studentResultInfo');if(info)info.textContent=`Showing ${list.length} of ${db.students.length} students`;el('studentsTable').innerHTML=list.length?`<div class="student-mobile-list">${list.map(studentCard).join('')}</div><div class="student-desktop-table table-wrap"><table><thead><tr><th>Student</th><th>ID</th><th>Phone</th><th>Parent</th><th>Course / Batch</th><th>Joining</th><th>Fee</th><th>Status</th><th>Actions</th></tr></thead><tbody>${list.map(s=>`<tr><td><div class="student-name">${avatar(s)}<div><b>${esc(s.name)}</b><small>${esc(s.seat||'No seat')}</small></div></div></td><td>${esc(s.id)}</td><td>${esc(s.phone||'-')}</td><td>${esc(s.parentName||s.fatherName||s.motherName||'-')}<br><small>${esc(s.parentPhone||s.fatherPhone||'-')}</small></td><td>${esc(s.course||'-')} / ${esc(s.batch||'-')}</td><td>${esc(s.joinDate||'-')}</td><td>${money(hallFee(s))}</td><td><span class="badge ${(s.status||'Active')==='Inactive'?'absent':'present'}">${esc(s.status||'Active')}</span></td><td><div class="row-actions"><button class="secondary" onclick="viewStudent('${s.id}')">View</button><button class="secondary" onclick="editStudent('${s.id}')">Edit</button><button class="danger" onclick="deleteStudent('${s.id}')">Delete</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No students match the selected search or filters.</div>'}
 function studentForm(s={}){return `<form id="studentForm" class="form-grid">
 <div class="section-title">Student Details</div>
 <div class="field"><label>Student ID *</label><input name="id" value="${esc(s.id||nextStudentId())}" required ${s.id?'readonly':''}></div><div class="field"><label>Full Name *</label><input name="name" value="${esc(s.name||'')}" required></div><div class="field"><label>Gender</label><select name="gender"><option ${s.gender==='Female'?'selected':''}>Female</option><option ${s.gender==='Male'?'selected':''}>Male</option><option ${s.gender==='Other'?'selected':''}>Other</option></select></div>

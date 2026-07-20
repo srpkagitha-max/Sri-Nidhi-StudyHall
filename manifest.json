@@ -1,7 +1,7 @@
 {
   "name": "Sri Nidhi Study Hall Management System",
   "short_name": "Sri Nidhi",
-  "start_url": "./?v=250",
+  "start_url": "./?v=261",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f8f8",
