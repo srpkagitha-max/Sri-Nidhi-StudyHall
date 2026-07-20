@@ -20,3 +20,10 @@ v2.5 Build 2 Corrected updates:
 - Parse Data supports tab, CSV, pipe and multi-space rows
 - Preview, inline edit and Save All retained
 - Duplicate checks by ID, Aadhaar and phone
+
+
+v2.5 Build 3
+- Excel-style bulk preview
+- Live validation and duplicate highlighting
+- Select rows, Save Selected, Save All Valid
+- Parsed/Valid/Duplicate/Invalid counters

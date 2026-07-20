@@ -241,3 +241,60 @@ function renderStudentImportPreview(){const msg=el('importMessage');msg.textCont
 window.removeImportRow=i=>{studentImportRows.splice(i,1);renderStudentImportPreview()};
 window.saveImportedStudents=function(){document.querySelectorAll('#studentImportPreview tbody tr').forEach(tr=>{const i=Number(tr.dataset.i);tr.querySelectorAll('[data-k]').forEach(inp=>studentImportRows[i][inp.dataset.k]=inp.type==='number'?Number(inp.value):inp.value.trim())});let added=0,skipped=[];for(const r of studentImportRows){if(!r.name){skipped.push('Missing name');continue}r.id=r.id||nextStudentId();const dup=db.students.find(s=>s.id===r.id||(r.aadhaar&&s.aadhaar===r.aadhaar)||(r.phone&&s.phone===r.phone));if(dup){skipped.push(`${r.name} (${dup.id})`);continue}r.nextDueDate=addOneMonth(r.joinDate);r.parentName=r.fatherName||r.motherName||'';r.parentPhone=r.fatherPhone||r.motherPhone||'';db.students.push(r);added++}db.importHistory=db.importHistory||[];db.importHistory.push({id:uid(),date:new Date().toISOString(),added,skipped:skipped.length});saveDB();closeModal();render('students');alert(`${added} students added. ${skipped.length} duplicates/invalid skipped.`)}
 window.downloadStudentTemplate=function(){const csv='Student ID,Student Name,Gender,DOB,Student Phone,Student Aadhaar,Father Name,Father Phone,Father Aadhaar,Mother Name,Mother Phone,Mother Aadhaar,Address,Course,Batch,Seat,Joining Date,Monthly Fee,Status\nSN0001,Sample Student,Female,2010-01-01,9876543210,123456789012,Father Name,9876543211,123456789013,Mother Name,9876543212,123456789014,Address,DSC,Morning,A01,2026-07-20,1500,Active';const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='Sri-Nidhi-Student-Import-Template.csv';a.click();URL.revokeObjectURL(a.href)}
+
+/* v2.5 Build 3 — Excel-style preview, selection and live validation */
+function syncStudentImportRows(){
+ document.querySelectorAll('#studentImportPreview tbody tr[data-i]').forEach(tr=>{
+  const i=Number(tr.dataset.i),row=studentImportRows[i]; if(!row)return;
+  tr.querySelectorAll('[data-k]').forEach(inp=>row[inp.dataset.k]=inp.type==='number'?Number(inp.value||0):inp.value.trim());
+  const cb=tr.querySelector('.import-select'); if(cb)row._selected=cb.checked;
+ });
+}
+function importRowIssues(row,index){
+ const issues=[];
+ if(!String(row.name||'').trim())issues.push('Student Name required');
+ const id=String(row.id||'').trim(),phone=String(row.phone||'').replace(/\D/g,''),aadhaar=String(row.aadhaar||'').replace(/\D/g,'');
+ if(phone&&phone.length!==10)issues.push('Phone must be 10 digits');
+ if(aadhaar&&aadhaar.length!==12)issues.push('Aadhaar must be 12 digits');
+ const otherRows=studentImportRows.filter((_,i)=>i!==index);
+ if(id&&(db.students.some(s=>s.id===id)||otherRows.some(r=>String(r.id||'').trim()===id)))issues.push('Duplicate Student ID');
+ if(phone&&(db.students.some(s=>s.phone===phone)||otherRows.some(r=>String(r.phone||'').replace(/\D/g,'')===phone)))issues.push('Duplicate Phone');
+ if(aadhaar&&(db.students.some(s=>s.aadhaar===aadhaar)||otherRows.some(r=>String(r.aadhaar||'').replace(/\D/g,'')===aadhaar)))issues.push('Duplicate Aadhaar');
+ return issues;
+}
+function updateStudentImportValidation(){
+ syncStudentImportRows();
+ let valid=0,duplicate=0,invalid=0,selected=0;
+ studentImportRows.forEach((r,i)=>{
+  const issues=importRowIssues(r,i),tr=document.querySelector(`#studentImportPreview tr[data-i="${i}"]`);
+  r._issues=issues;
+  if(r._selected!==false)selected++;
+  if(!issues.length)valid++; else if(issues.some(x=>x.startsWith('Duplicate')))duplicate++; else invalid++;
+  if(tr){tr.classList.toggle('row-valid',!issues.length);tr.classList.toggle('row-invalid',issues.length>0);tr.classList.toggle('row-duplicate',issues.some(x=>x.startsWith('Duplicate')));const cell=tr.querySelector('.import-status-cell');if(cell)cell.innerHTML=issues.length?`<span class="import-error" title="${esc(issues.join(', '))}">${esc(issues[0])}</span>`:'<span class="import-ok">Valid</span>';}
+ });
+ const s=el('importStats');if(s)s.innerHTML=`<span><b>${studentImportRows.length}</b> Parsed</span><span><b>${valid}</b> Valid</span><span><b>${duplicate}</b> Duplicate</span><span><b>${invalid}</b> Invalid</span><span><b>${selected}</b> Selected</span>`;
+ const all=el('importSelectAll');if(all)all.checked=studentImportRows.length>0&&studentImportRows.every(r=>r._selected!==false);
+}
+window.toggleImportAll=function(checked){studentImportRows.forEach(r=>r._selected=checked);document.querySelectorAll('.import-select').forEach(x=>x.checked=checked);updateStudentImportValidation()};
+window.toggleImportRow=function(i,checked){if(studentImportRows[i])studentImportRows[i]._selected=checked;updateStudentImportValidation()};
+window.renderStudentImportPreview=function(){
+ const msg=el('importMessage');
+ msg.textContent=studentImportRows.length?`${studentImportRows.length} records parsed. Invalid or duplicate rows are highlighted.`:'Student records గుర్తించబడలేదు. Excel/CSV template ఉపయోగించండి లేదా PDFలో table text ఉండాలి.';
+ const box=el('studentImportPreview');if(!box)return;
+ if(!studentImportRows.length){box.innerHTML='<button class="secondary" onclick="downloadStudentTemplate()">Download CSV Template</button>';return}
+ studentImportRows.forEach(r=>{if(r._selected===undefined)r._selected=true});
+ box.innerHTML=`<div id="importStats" class="import-stats"></div><div class="table-wrap import-table excel-preview"><table><thead><tr><th><input id="importSelectAll" type="checkbox" checked onchange="toggleImportAll(this.checked)"></th><th>#</th><th>ID</th><th>Name *</th><th>Phone</th><th>Aadhaar</th><th>Father</th><th>Mother</th><th>Course</th><th>Batch</th><th>Join Date</th><th>Fee</th><th>Validation</th><th></th></tr></thead><tbody>${studentImportRows.map((r,i)=>`<tr data-i="${i}"><td><input class="import-select" type="checkbox" ${r._selected!==false?'checked':''} onchange="toggleImportRow(${i},this.checked)"></td><td>${i+1}</td><td><input data-k="id" value="${esc(r.id)}" placeholder="Auto"></td><td><input data-k="name" value="${esc(r.name)}"></td><td><input data-k="phone" inputmode="numeric" value="${esc(r.phone)}"></td><td><input data-k="aadhaar" inputmode="numeric" value="${esc(r.aadhaar)}"></td><td><input data-k="fatherName" value="${esc(r.fatherName)}"></td><td><input data-k="motherName" value="${esc(r.motherName)}"></td><td><input data-k="course" value="${esc(r.course)}"></td><td><input data-k="batch" value="${esc(r.batch)}"></td><td><input type="date" data-k="joinDate" value="${esc(r.joinDate)}"></td><td><input type="number" data-k="monthlyFee" value="${Number(r.monthlyFee||0)}"></td><td class="import-status-cell"></td><td><button class="danger mini" onclick="removeImportRow(${i})">×</button></td></tr>`).join('')}</tbody></table></div><div class="actions import-actions"><button class="primary" onclick="saveImportedStudents('selected')">Save Selected</button><button class="primary" onclick="saveImportedStudents('all')">Save All Valid</button><button class="secondary" onclick="downloadStudentTemplate()">CSV Template</button></div>`;
+ box.querySelectorAll('[data-k]').forEach(inp=>inp.addEventListener('input',updateStudentImportValidation));updateStudentImportValidation();
+};
+window.removeImportRow=function(i){syncStudentImportRows();studentImportRows.splice(i,1);renderStudentImportPreview()};
+window.saveImportedStudents=function(mode='all'){
+ syncStudentImportRows();let added=0,skipped=[];
+ studentImportRows.forEach((r,i)=>{
+  const issues=importRowIssues(r,i);if(mode==='selected'&&r._selected===false)return;
+  if(issues.length){skipped.push(`${r.name||'Unnamed'}: ${issues.join(', ')}`);return}
+  r.id=r.id||nextStudentId();r.phone=String(r.phone||'').replace(/\D/g,'');r.aadhaar=String(r.aadhaar||'').replace(/\D/g,'');r.nextDueDate=addOneMonth(r.joinDate);r.parentName=r.fatherName||r.motherName||'';r.parentPhone=r.fatherPhone||r.motherPhone||'';
+  const clean={...r};delete clean._selected;delete clean._issues;db.students.push(clean);added++;
+ });
+ if(!added)return alert(`No valid students to save. ${skipped.length} rows need correction.`);
+ db.importHistory=db.importHistory||[];db.importHistory.push({id:uid(),date:new Date().toISOString(),added,skipped:skipped.length,build:'v2.5 Build 3'});saveDB();closeModal();render('students');alert(`${added} students added successfully. ${skipped.length} rows skipped.`)
+};
