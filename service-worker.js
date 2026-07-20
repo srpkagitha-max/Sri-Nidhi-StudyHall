@@ -1,4 +1,4 @@
-const CACHE="sri-nidhi-v2.8.1-complete-gps";
+const CACHE="sri-nidhi-v2.8.2-complete-gps";
 const ASSETS=["./","./index.html","./style.css?v=2.8.1","./app.js?v=2.8.1","./manifest.json","./icon.svg","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./favicon.png"];
 self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener("activate",e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k!==CACHE)await caches.delete(k);await self.clients.claim()})()));

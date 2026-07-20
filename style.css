@@ -192,3 +192,16 @@ th{background:#f3f9f8;color:#35595a}
 /* v2.8.1 Complete GPS Tracking */
 .gps-note{background:#fff8e6;border:1px solid #f4d38a;border-radius:12px;padding:11px 13px;margin-bottom:14px;color:#72510d;font-size:.84rem;line-height:1.45}.gps-toggle-field{display:flex;align-items:end}.gps-toggle-field label{display:flex;align-items:center;gap:9px;background:#eef9f7;border:1px solid #cde9e5;border-radius:11px;padding:11px;width:100%}.gps-toggle-field input{width:auto}.movement-submit-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.gps-last{font-size:.75rem;color:#64748b;margin-top:7px}.gps-last a,.movement-history-card a{color:#0b6662;font-weight:700}.gps-history-btn{font-size:.72rem;padding:7px 9px}.gps-history-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.gps-history-summary span{background:#f4f8f8;border-radius:10px;padding:10px;font-size:.78rem}.gps-history-summary b{display:block;margin-top:3px}.gps-timeline{display:grid;gap:0;margin-top:12px}.gps-point{display:grid;grid-template-columns:18px 1fr;gap:9px;position:relative;padding-bottom:16px}.gps-point:before{content:"";position:absolute;left:7px;top:14px;bottom:0;width:2px;background:#cde9e5}.gps-point:last-child:before{display:none}.gps-dot{width:14px;height:14px;border-radius:50%;background:#0f7f7a;margin-top:3px;z-index:1}.gps-point small,.gps-point a{display:block;margin-top:4px}.gps-point small{color:#64748b}.gps-point a{color:#0b6662;font-weight:700;text-decoration:none}
 @media(max-width:600px){.gps-history-summary{grid-template-columns:1fr}.movement-submit-row{display:grid}.movement-submit-row button{width:100%}.gps-toggle-field{grid-column:1/-1}}
+
+/* v2.8.2 Stable polish */
+.tracking-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.tracking-status{display:inline-flex;align-items:center;justify-content:center;padding:6px 9px;border-radius:999px;font-size:.72rem;font-weight:800;white-space:nowrap;border:1px solid transparent}
+.tracking-status.tracking{background:#e8f7ef;color:#157347;border-color:#b8e3ca}
+.tracking-status.stopped{background:#fff0f0;color:#b42318;border-color:#fecaca}
+.outside-badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.gps-note{display:flex;gap:6px;align-items:flex-start;min-height:auto;overflow:visible;white-space:normal}
+.gps-note b{flex:0 0 auto}.gps-note span{display:block;overflow-wrap:anywhere}
+.v282-toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);z-index:10000;max-width:min(92vw,520px);padding:12px 16px;border-radius:12px;font:700 14px system-ui;box-shadow:0 12px 34px #0003;opacity:0;pointer-events:none;transition:.22s ease;background:#163f3d;color:#fff;text-align:center}
+.v282-toast.show{opacity:1;transform:translate(-50%,0)}
+.v282-toast.warning{background:#8a5a00}
+@media(max-width:600px){.tracking-head{width:100%;justify-content:flex-start}.outside-badges{justify-content:flex-start}.movement-form-card .card-heading-row{align-items:flex-start}.gps-note{font-size:.8rem;line-height:1.55}.movement-form-card .form-grid{gap:11px}.movement-form-card input,.movement-form-card select{min-height:44px}.v282-toast{bottom:70px}}
