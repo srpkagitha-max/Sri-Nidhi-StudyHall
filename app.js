@@ -347,3 +347,136 @@ window.viewStudent=id=>{const s=db.students.find(x=>x.id===id);if(!s)return;cons
 window.printStudentId=id=>{const s=db.students.find(x=>x.id===id);if(!s)return;const hall=esc(db.settings.hallName||'Sri Nidhi Study Hall'),photo=s.photo?`<img src="${s.photo}" alt="">`:`<div class="id-avatar">${esc((s.name||'?').slice(0,1).toUpperCase())}</div>`,w=window.open('','_blank','width=480,height=700');if(!w)return alert('Popup blocked. Please allow popups.');w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(s.id)} ID Card</title><style>body{font-family:Arial,sans-serif;background:#eef6f5;padding:25px}.id{width:320px;margin:auto;background:white;border:2px solid #0f7f7a;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px #0002}.head{background:#0f7f7a;color:#fff;text-align:center;padding:18px}.head h2{margin:0;font-size:20px}.body{text-align:center;padding:22px}.body img,.id-avatar{width:92px;height:92px;border-radius:50%;object-fit:cover;margin:auto;border:4px solid #dff3f1}.id-avatar{display:grid;place-items:center;background:#dff3f1;color:#0f7f7a;font-size:42px;font-weight:800}.body h1{font-size:21px;margin:13px 0 3px}.body p{margin:5px;color:#455}.grid{display:grid;grid-template-columns:1fr 1fr;text-align:left;gap:8px;margin-top:17px;padding-top:14px;border-top:1px solid #ddd}.grid b{display:block;font-size:10px;color:#789;text-transform:uppercase}.foot{text-align:center;background:#f2fbfa;padding:10px;font-size:11px;color:#456}@media print{body{background:#fff;padding:0}.id{box-shadow:none}}</style></head><body><div class="id"><div class="head"><h2>${hall}</h2><small>STUDENT ID CARD</small></div><div class="body">${photo}<h1>${esc(s.name)}</h1><p><b>${esc(s.id)}</b></p><div class="grid"><div><b>Course</b>${esc(s.course||'-')}</div><div><b>Batch</b>${esc(s.batch||'-')}</div><div><b>Seat</b>${esc(s.seat||'-')}</div><div><b>Phone</b>${esc(s.phone||'-')}</div></div></div><div class="foot">Valid while student status is active</div></div><script>window.onload=()=>setTimeout(()=>window.print(),250)<\/script></body></html>`);w.document.close()};
 window.deleteStudent=id=>{const s=db.students.find(x=>x.id===id);if(!s)return;openModal(`<div class="delete-confirm"><h2>Delete Student?</h2><p><b>${esc(s.name)}</b> (${esc(s.id)}) will be removed from the student master.</p><p class="muted">Fee, attendance and movement history will remain in reports.</p><div class="actions"><button class="danger" onclick="confirmDeleteStudent('${s.id}')">Yes, Delete</button><button class="secondary" onclick="closeModal()">Cancel</button></div></div>`)};
 window.confirmDeleteStudent=id=>{const s=db.students.find(x=>x.id===id);if(!s)return;db.students=db.students.filter(x=>x.id!==id);logAction('student_deleted',`${s.id} - ${s.name} deleted`);saveDB();closeModal();render('students')};
+
+/* =========================================================
+   v2.7 — FEES MODULE
+   Scope: fee collection, auto receipts, ledger, filters,
+   printable receipts and collection summaries.
+   ========================================================= */
+function feeMonthLabel(value){
+  if(!value) return '-';
+  const [y,m]=String(value).split('-');
+  const d=new Date(Number(y),Number(m)-1,1);
+  return d.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+}
+function feeTotals(list=db.fees){
+  return list.reduce((a,f)=>{
+    a.collected+=Number(f.paid||0);
+    a.billed+=Number(f.amount||0);
+    a.balance+=Math.max(0,Number(f.amount||0)-Number(f.paid||0));
+    a.count++;
+    return a;
+  },{collected:0,billed:0,balance:0,count:0});
+}
+function feeStatus(f){
+  const amount=Number(f.amount||0),paid=Number(f.paid||0);
+  if(paid>=amount) return {label:'Paid',className:'present'};
+  if(paid>0) return {label:'Part Paid',className:'pending'};
+  return {label:'Pending',className:'absent'};
+}
+function renderFees(){
+  const thisMonth=monthNow(),todayDate=today();
+  el('pageContent').innerHTML=`
+  <div class="fee-stats" id="feeStats"></div>
+  <div class="card fee-entry-card">
+    <div class="card-heading-row"><div><h3>Fee Collection</h3><p class="muted">Record a payment and generate an automatic receipt.</p></div><span class="receipt-preview">Next: ${esc(nextReceipt())}</span></div>
+    <form id="feeForm" class="form-grid">
+      <div class="field span-2"><label>Student</label><select id="feeStudent" name="studentId" required>${studentOptions()}</select></div>
+      <div class="field"><label>Fee Month</label><input type="month" name="month" value="${thisMonth}" required></div>
+      <div class="field"><label>Monthly Fee</label><input id="feeAmount" type="number" min="1" name="amount" value="${db.settings.monthlyFee}" required></div>
+      <div class="field"><label>Paid Amount</label><input id="feePaid" type="number" min="1" name="paid" required></div>
+      <div class="field"><label>Payment Date</label><input type="date" name="date" value="${todayDate}" required></div>
+      <div class="field"><label>Payment Mode</label><select name="mode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Card</option></select></div>
+      <div class="field span-2"><label>Remarks</label><input name="remarks" placeholder="Optional note"></div>
+      <div class="span-3 fee-form-footer"><div id="feeBalanceHint" class="fee-balance-hint"></div><button class="primary">Save Payment & Receipt</button></div>
+    </form>
+  </div>
+  <div class="card">
+    <div class="card-heading-row"><div><h3>Payment History</h3><p class="muted">Search, filter, print receipts or open a student ledger.</p></div><button class="secondary" onclick="downloadFeeReportCSV()">Export CSV</button></div>
+    <div class="fee-filters">
+      <input id="feeSearch" placeholder="Search student / receipt / phone">
+      <input id="feeMonthFilter" type="month" value="${thisMonth}">
+      <select id="feeModeFilter"><option value="">All Modes</option><option>Cash</option><option>UPI</option><option>Bank</option><option>Card</option></select>
+      <button class="secondary" type="button" onclick="clearFeeFilters()">Clear Filters</button>
+    </div>
+    <div id="feeResultInfo" class="result-info"></div>
+    <div id="feeTable"></div>
+  </div>`;
+  const student=el('feeStudent');
+  const syncFee=()=>{const s=db.students.find(x=>x.id===student.value);el('feeAmount').value=hallFee(s);updateFeeBalanceHint()};
+  student.onchange=syncFee;
+  el('feeAmount').oninput=updateFeeBalanceHint;
+  el('feePaid').oninput=updateFeeBalanceHint;
+  student.dispatchEvent(new Event('change'));
+  ['feeSearch','feeMonthFilter','feeModeFilter'].forEach(id=>{el(id).oninput=drawFees;el(id).onchange=drawFees});
+  el('feeForm').onsubmit=e=>{
+    e.preventDefault();
+    const o=Object.fromEntries(new FormData(e.target));
+    o.id=uid();o.amount=Number(o.amount);o.paid=Number(o.paid);o.receipt=nextReceipt();o.createdAt=new Date().toISOString();
+    if(!o.studentId)return alert('Student select చేయండి');
+    if(o.paid<=0||o.paid>o.amount)return alert('Paid amount సరైనదిగా నమోదు చేయండి');
+    db.fees.push(o);
+    logAction('fee_paid',`Fee received: ${studentName(o.studentId)} - ${money(o.paid)} (${o.receipt})`);
+    saveDB();
+    renderFees();
+    setTimeout(()=>printFeeReceipt(o.id,false),50);
+  };
+  drawFees();
+}
+function updateFeeBalanceHint(){
+  const amount=Number(el('feeAmount')?.value||0),paid=Number(el('feePaid')?.value||0),hint=el('feeBalanceHint');
+  if(!hint)return;
+  const balance=Math.max(0,amount-paid);
+  hint.innerHTML=paid?`Balance after payment: <b>${money(balance)}</b>`:'Enter the amount received';
+}
+function filteredFees(){
+  const q=(el('feeSearch')?.value||'').trim().toLowerCase();
+  const month=el('feeMonthFilter')?.value||'';
+  const mode=el('feeModeFilter')?.value||'';
+  return [...db.fees].filter(f=>{
+    const s=db.students.find(x=>x.id===f.studentId)||{};
+    return (!month||f.month===month)&&(!mode||f.mode===mode)&&(!q||[f.receipt,f.month,f.mode,f.remarks,s.id,s.name,s.phone,s.parentPhone].join(' ').toLowerCase().includes(q));
+  }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+}
+function drawFees(){
+  const list=filteredFees(),tot=feeTotals(list),month=el('feeMonthFilter')?.value||monthNow();
+  const monthPending=getPending(month).reduce((n,x)=>n+Number(x.balance||0),0);
+  const todayTotal=db.fees.filter(f=>f.date===today()).reduce((n,f)=>n+Number(f.paid||0),0);
+  const stats=el('feeStats');
+  if(stats)stats.innerHTML=`
+    <div class="fee-stat"><small>Today's Collection</small><b>${money(todayTotal)}</b></div>
+    <div class="fee-stat"><small>Filtered Collection</small><b>${money(tot.collected)}</b><span>${tot.count} payments</span></div>
+    <div class="fee-stat"><small>${esc(feeMonthLabel(month))} Pending</small><b>${money(monthPending)}</b></div>
+    <div class="fee-stat"><small>Total Receipts</small><b>${db.fees.length}</b></div>`;
+  const info=el('feeResultInfo');if(info)info.textContent=`Showing ${list.length} payment${list.length===1?'':'s'} • Collected ${money(tot.collected)}`;
+  el('feeTable').innerHTML=list.length?`<div class="fee-mobile-list">${list.map(f=>feeMobileCard(f)).join('')}</div><div class="fee-desktop-table table-wrap"><table><thead><tr><th>Receipt</th><th>Student</th><th>Month</th><th>Fee</th><th>Paid</th><th>Balance</th><th>Date</th><th>Mode</th><th>Status</th><th>Actions</th></tr></thead><tbody>${list.map(f=>{const st=feeStatus(f);return `<tr><td><b>${esc(f.receipt||'-')}</b></td><td>${esc(studentName(f.studentId))}<br><small>${esc(f.studentId)}</small></td><td>${esc(feeMonthLabel(f.month))}</td><td>${money(f.amount)}</td><td><b>${money(f.paid)}</b></td><td>${money(Math.max(0,Number(f.amount)-Number(f.paid)))}</td><td>${esc(f.date)}</td><td>${esc(f.mode||'-')}</td><td><span class="badge ${st.className}">${st.label}</span></td><td><div class="row-actions"><button class="secondary" onclick="printFeeReceipt('${f.id}')">Receipt</button><button class="secondary" onclick="openStudentLedger('${f.studentId}')">Ledger</button><button class="danger" onclick="deleteFee('${f.id}')">Delete</button></div></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">No payments match the selected filters.</div>';
+}
+function feeMobileCard(f){
+  const st=feeStatus(f),s=db.students.find(x=>x.id===f.studentId)||{};
+  return `<article class="fee-mobile-card"><div class="fee-mobile-top"><div><small>${esc(f.receipt||'-')}</small><h4>${esc(s.name||f.studentId)}</h4><span>${esc(feeMonthLabel(f.month))} • ${esc(f.date)}</span></div><span class="badge ${st.className}">${st.label}</span></div><div class="fee-mobile-money"><div><small>Paid</small><b>${money(f.paid)}</b></div><div><small>Balance</small><b>${money(Math.max(0,Number(f.amount)-Number(f.paid)))}</b></div><div><small>Mode</small><b>${esc(f.mode||'-')}</b></div></div><div class="row-actions"><button class="secondary" onclick="printFeeReceipt('${f.id}')">Receipt</button><button class="secondary" onclick="openStudentLedger('${f.studentId}')">Ledger</button><button class="danger" onclick="deleteFee('${f.id}')">Delete</button></div></article>`;
+}
+window.clearFeeFilters=()=>{if(el('feeSearch'))el('feeSearch').value='';if(el('feeMonthFilter'))el('feeMonthFilter').value=monthNow();if(el('feeModeFilter'))el('feeModeFilter').value='';drawFees()};
+window.openStudentLedger=function(studentId){
+  const s=db.students.find(x=>x.id===studentId);if(!s)return;
+  const rows=[...db.fees].filter(f=>f.studentId===studentId).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const tot=feeTotals(rows),current=studentFeeStatus(s);
+  openModal(`<div class="ledger-head"><div><h2>${esc(s.name)} — Fee Ledger</h2><p class="muted">${esc(s.id)} • ${esc(s.phone||'-')} • ${esc(s.batch||'-')}</p></div><button class="primary" onclick="printStudentLedger('${s.id}')">Print Ledger</button></div><div class="fee-stats ledger-stats"><div class="fee-stat"><small>Total Paid</small><b>${money(tot.collected)}</b></div><div class="fee-stat"><small>Payments</small><b>${rows.length}</b></div><div class="fee-stat"><small>Current Month</small><b>${current.label}</b><span>${money(current.balance)} balance</span></div></div>${rows.length?`<div class="table-wrap"><table><thead><tr><th>Receipt</th><th>Month</th><th>Date</th><th>Fee</th><th>Paid</th><th>Mode</th><th></th></tr></thead><tbody>${rows.map(f=>`<tr><td>${esc(f.receipt)}</td><td>${esc(feeMonthLabel(f.month))}</td><td>${esc(f.date)}</td><td>${money(f.amount)}</td><td><b>${money(f.paid)}</b></td><td>${esc(f.mode||'-')}</td><td><button class="secondary" onclick="printFeeReceipt('${f.id}')">Receipt</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No fee history</div>'}`);
+};
+window.printFeeReceipt=function(id,openPrint=true){
+  const f=db.fees.find(x=>x.id===id);if(!f)return;
+  const s=db.students.find(x=>x.id===f.studentId)||{};
+  const balance=Math.max(0,Number(f.amount)-Number(f.paid));
+  const w=window.open('','_blank','width=760,height=800');if(!w)return alert('Popup blocked. Allow popups to print receipt.');
+  w.document.write(`<!doctype html><html><head><title>${esc(f.receipt)}</title><style>body{font-family:Arial,sans-serif;color:#17202a;padding:28px}.receipt{max-width:650px;margin:auto;border:2px solid #0f7f7a;border-radius:16px;overflow:hidden}.head{background:#0f7f7a;color:#fff;text-align:center;padding:22px}.head h1{margin:0 0 4px}.body{padding:24px}.meta,.amounts{display:grid;grid-template-columns:1fr 1fr;gap:12px}.box{border:1px solid #d8e3e7;border-radius:10px;padding:12px}.amounts{margin:20px 0}.paid{font-size:24px;color:#0f7f7a}.foot{text-align:center;border-top:1px dashed #aaa;padding-top:16px;color:#667}.actions{text-align:center;margin:20px}button{padding:10px 18px}@media print{.actions{display:none}}</style></head><body><div class="receipt"><div class="head"><h1>${esc(db.settings.hallName)}</h1><div>FEE RECEIPT</div></div><div class="body"><div class="meta"><div class="box"><small>Receipt Number</small><br><b>${esc(f.receipt)}</b></div><div class="box"><small>Payment Date</small><br><b>${esc(f.date)}</b></div><div class="box"><small>Student</small><br><b>${esc(s.name||f.studentId)}</b><br>${esc(f.studentId)}</div><div class="box"><small>Fee Month</small><br><b>${esc(feeMonthLabel(f.month))}</b></div></div><div class="amounts"><div class="box"><small>Monthly Fee</small><div>${money(f.amount)}</div></div><div class="box"><small>Amount Paid</small><div class="paid"><b>${money(f.paid)}</b></div></div><div class="box"><small>Balance</small><div><b>${money(balance)}</b></div></div><div class="box"><small>Payment Mode</small><div><b>${esc(f.mode||'-')}</b></div></div></div>${f.remarks?`<p><b>Remarks:</b> ${esc(f.remarks)}</p>`:''}<div class="foot">Thank you. This is a computer-generated receipt.</div></div></div><div class="actions"><button onclick="window.print()">Print Receipt</button></div></body></html>`);w.document.close();if(openPrint)setTimeout(()=>w.print(),350);
+};
+window.printStudentLedger=function(studentId){
+  const s=db.students.find(x=>x.id===studentId);if(!s)return;const rows=[...db.fees].filter(f=>f.studentId===studentId).sort((a,b)=>String(a.date).localeCompare(String(b.date)));const tot=feeTotals(rows);const w=window.open('','_blank');if(!w)return alert('Popup blocked');w.document.write(`<!doctype html><html><head><title>${esc(s.name)} Fee Ledger</title><style>body{font-family:Arial;padding:28px}h1{margin-bottom:4px}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #bbb;padding:8px;text-align:left}th{background:#eef7f6}.summary{margin:14px 0;font-weight:bold}@media print{button{display:none}}</style></head><body><h1>${esc(db.settings.hallName)}</h1><h2>Student Fee Ledger</h2><p><b>${esc(s.name)}</b> — ${esc(s.id)} — ${esc(s.phone||'-')}</p><div class="summary">Total Paid: ${money(tot.collected)} | Payments: ${rows.length}</div><table><thead><tr><th>Receipt</th><th>Month</th><th>Date</th><th>Fee</th><th>Paid</th><th>Balance</th><th>Mode</th></tr></thead><tbody>${rows.map(f=>`<tr><td>${esc(f.receipt)}</td><td>${esc(feeMonthLabel(f.month))}</td><td>${esc(f.date)}</td><td>${money(f.amount)}</td><td>${money(f.paid)}</td><td>${money(Math.max(0,Number(f.amount)-Number(f.paid)))}</td><td>${esc(f.mode||'-')}</td></tr>`).join('')}</tbody></table><p><button onclick="window.print()">Print Ledger</button></p></body></html>`);w.document.close();setTimeout(()=>w.print(),350)};
+window.downloadFeeReportCSV=function(){
+  const rows=filteredFees();
+  const header=['Receipt','Student ID','Student Name','Month','Fee','Paid','Balance','Date','Mode','Remarks'];
+  const data=rows.map(f=>[f.receipt,f.studentId,studentName(f.studentId),f.month,f.amount,f.paid,Math.max(0,Number(f.amount)-Number(f.paid)),f.date,f.mode||'',f.remarks||'']);
+  const csv=[header,...data].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Fee-Collection-${el('feeMonthFilter')?.value||'all'}.csv`;a.click();URL.revokeObjectURL(a.href);
+};
+const _deleteFeeV27=window.deleteFee;
+window.deleteFee=id=>{const f=db.fees.find(x=>x.id===id);if(!f)return;if(confirm(`Delete receipt ${f.receipt||''}?`)){db.fees=db.fees.filter(x=>x.id!==id);logAction('fee_deleted',`Deleted ${f.receipt||id}`);saveDB();drawFees()}};
