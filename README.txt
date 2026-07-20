@@ -13,3 +13,10 @@ v2.4 HOME SCREEN
 - Added 10 compact, simple module cards.
 - Removed emojis from Home cards.
 - Preserved Teal + White theme.
+
+
+v2.5 Build 2 Corrected updates:
+- Added Paste Data Bulk Add screen
+- Parse Data supports tab, CSV, pipe and multi-space rows
+- Preview, inline edit and Save All retained
+- Duplicate checks by ID, Aadhaar and phone
