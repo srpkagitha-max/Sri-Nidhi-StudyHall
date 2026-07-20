@@ -113,7 +113,7 @@ th{background:#f3f9f8;color:#35595a}
   .dashboard-search input,.d3-search input{font-size:15px}
 }
 
-/* v2.3 unified Design 3 polish */
+/* v2.4 unified Design 3 polish */
 :root{--bg:#f4f8f8;--card:#fff;--text:#123e3b;--muted:#758684;--primary:#0f7f7a;--primary2:#0b6662;--line:#dce9e8;--shadow:0 8px 24px rgba(15,127,122,.08)}
 .login-wrap{background:linear-gradient(180deg,#edf8f7 0%,#f8fbfb 100%)}
 .logo,.brand-logo{background:linear-gradient(135deg,#0f7f7a,#18a29a)}
@@ -132,3 +132,14 @@ th{background:#f3f9f8;color:#35595a}
 .d3-panel{box-shadow:var(--shadow)!important;border:1px solid var(--line)!important}
 .d3-actions button{border-color:var(--primary)!important;color:var(--primary)!important}
 @media(max-width:430px){.d3-search{grid-template-columns:minmax(0,1fr) 86px!important}.d3-search input{font-size:14px!important;padding:10px 7px!important}.d3-search button{padding:10px 8px!important}.d3-welcome h1{font-size:21px!important}}
+
+
+/* v2.4 simple Home launcher */
+.home-intro{margin:0 0 10px}.home-intro h1{margin:0;font-size:24px;line-height:1.2;color:var(--text)}.home-intro p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.home-brand-card{background:#fff;border:1px solid var(--line);border-left:4px solid var(--primary);border-radius:13px;padding:13px 15px;margin-bottom:10px;box-shadow:0 4px 14px rgba(15,127,122,.06)}
+.home-brand-card h2{margin:0;color:var(--primary2);font-size:17px;line-height:1.3}.home-brand-card span{display:block;margin-top:3px;color:var(--muted);font-size:12px}
+.home-menu-list{display:grid;grid-template-columns:1fr;gap:8px}
+.home-menu-card{width:100%;min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#203a3b;text-align:left;font:700 14px/1.2 inherit;box-shadow:0 2px 8px rgba(18,62,59,.045);cursor:pointer;transition:.15s ease}
+.home-menu-card:hover,.home-menu-card:focus-visible{background:#f0faf9;border-color:#8fd3cf;outline:none;transform:translateY(-1px)}.home-menu-card:active{transform:none}
+@media(min-width:760px){.home-menu-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.home-intro h1{font-size:22px}.home-brand-card{padding:12px 14px}.home-menu-card{min-height:42px;font-size:13.5px}}

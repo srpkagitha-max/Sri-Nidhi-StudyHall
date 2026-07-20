@@ -56,60 +56,28 @@ function render(page){currentPage=page;document.querySelectorAll('#navMenu butto
 
 function updateLiveClock(){const clock=el('liveClock');if(clock)clock.textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
 function renderDashboard(){
- const active=db.students.filter(s=>s.status!=='Inactive');
- const present=db.attendance.filter(a=>a.date===today()&&a.status==='Present').length;
- const outsideList=db.movements.filter(m=>m.status==='Outside');
- const late=outsideList.filter(isLateMovement).length;
- const month=monthNow();
- const collection=db.fees.filter(f=>f.month===month).reduce((a,f)=>a+Number(f.paid||0),0);
- const pendingList=getPending(month);
- const pending=pendingList.reduce((a,x)=>a+x.balance,0);
- const notices=(db.notices||[]).filter(n=>n.priority==='Urgent').length;
- const activities=(db.audit||[]).slice(0,5);
  const content=el('pageContent');
  content.replaceChildren();
  content.innerHTML=`
- <section class="d3-welcome">
-   <h1>${esc(db.settings.hallName)}</h1>
-   <span>Today’s study hall summary</span>
+ <section class="home-intro">
+   <h1>Home</h1>
+   <p>${esc(db.settings.hallName)}</p>
  </section>
-
- ${late?`<button class="d3-alert" onclick="render('movement')"><span>Late return requires attention</span><b>${late}</b></button>`:''}
-
- <div class="d3-search">
-   <input id="dashboardSearch" placeholder="Search student by name, ID, phone or parent name">
-   <button onclick="dashboardStudentSearch()">Search</button>
- </div>
-
- <section class="d3-panel d3-overview">
-   <div class="d3-section-head"><h3>Overview</h3><span>This month</span></div>
-   ${overviewRow('Total Students',active.length)}
-   ${overviewRow('Present Today',present)}
-   ${overviewRow('This Month Collection',money(collection))}
-   ${overviewRow('Pending Amount',money(pending))}
+ <section class="home-brand-card">
+   <h2>${esc(db.settings.hallName)}</h2>
+   <span>Student Management System</span>
  </section>
-
- <section class="d3-section">
-   <div class="d3-section-head"><h3>Quick Actions</h3><span>Daily work</span></div>
-   <div class="d3-actions">
-     <button onclick="render('admissions')">New Admission</button>
-     <button onclick="render('fees')">Add Fee</button>
-     <button onclick="render('attendance')">Attendance</button>
-     <button onclick="render('movement')">Entry / Exit</button>
-   </div>
- </section>
-
- <section class="d3-panel">
-   <div class="d3-section-head"><h3>Important</h3><span>Needs attention</span></div>
-   ${importantRow('Fee Pending Students',pendingList.length,"pending")}
-   ${importantRow('Outside Students',outsideList.length,"movement")}
-   ${importantRow('Late Returns',late,"movement")}
-   ${importantRow('Urgent Notices',notices,"notices")}
- </section>
-
- <section class="d3-panel d3-activity">
-   <div class="d3-section-head"><h3>Recent Activity</h3><button onclick="render('reports')">View Reports</button></div>
-   ${activities.length?`<div class="d3-activity-list">${activities.map(a=>`<div><b>${esc(a.details)}</b><span>${new Date(a.time).toLocaleString('en-IN')}</span></div>`).join('')}</div>`:'<div class="d3-empty">No activity yet</div>'}
+ <section class="home-menu-list" aria-label="Main modules">
+   <button class="home-menu-card" onclick="render('students')">Students</button>
+   <button class="home-menu-card" onclick="render('admissions')">Admissions</button>
+   <button class="home-menu-card" onclick="render('attendance')">Attendance</button>
+   <button class="home-menu-card" onclick="render('movement')">Entry / Exit</button>
+   <button class="home-menu-card" onclick="render('notices')">Notices</button>
+   <button class="home-menu-card" onclick="render('diary')">Daily Diary</button>
+   <button class="home-menu-card" onclick="render('fees')">Fees</button>
+   <button class="home-menu-card" onclick="render('pending')">Pending Fees</button>
+   <button class="home-menu-card" onclick="render('reports')">Reports</button>
+   <button class="home-menu-card" onclick="render('settings')">Settings</button>
  </section>`;
 }
 
