@@ -42,7 +42,7 @@ function closeMenu(){el('sidebar').classList.remove('open');el('overlay').classL
 function openMenu(){el('sidebar').classList.add('open');el('overlay').classList.remove('hidden')}
 
 el('todayText').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-el('loginBtn').onclick=()=>{const u=el('loginUser').value.trim(),p=el('loginPass').value;if(u===db.settings.adminUser&&p===db.settings.adminPass){el('loginView').classList.add('hidden');el('appView').classList.remove('hidden');render('dashboard')}else el('loginError').textContent='Wrong username or password'};
+el('loginBtn').onclick=()=>{const u=el('loginUser').value.trim(),p=el('loginPass').value;if(u===db.settings.adminUser&&p===db.settings.adminPass){el('loginView').classList.add('hidden');el('appView').classList.remove('hidden');history.replaceState({page:'dashboard'},'',location.href);render('dashboard',false)}else el('loginError').textContent='Wrong username or password'};
 el('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')el('loginBtn').click()});
 el('logoutBtn').onclick=()=>location.reload();
 el('menuBtn').onclick=()=>el('sidebar').classList.contains('open')?closeMenu():openMenu();
@@ -52,34 +52,56 @@ el('modalClose').onclick=closeModal;el('modal').onclick=e=>{if(e.target===el('mo
 function openModal(html){el('modalBody').innerHTML=html;el('modal').classList.remove('hidden')}
 function closeModal(){el('modal').classList.add('hidden');el('modalBody').innerHTML=''}
 
-function render(page){currentPage=page;document.querySelectorAll('#navMenu button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));const titles={dashboard:'Home',students:'Students',admissions:'Admissions',fees:'Fees',pending:'Pending Fees',attendance:'Attendance',movement:'Entry / Exit',notices:'Notices',diary:'Daily Diary',reports:'Reports',settings:'Settings'};el('pageTitle').textContent=titles[page]||page;el('sideHallName').textContent=db.settings.hallName.replace(/Study Hall/i,'').trim()||'Sri Nidhi';({dashboard:renderDashboard,students:renderStudents,admissions:renderAdmissions,fees:renderFees,pending:renderPending,attendance:renderAttendance,movement:renderMovement,notices:renderNotices,diary:renderDiary,reports:renderReports,settings:renderSettings}[page]||renderDashboard)()}
+function render(page,pushHistory=true){currentPage=page;document.querySelectorAll('#navMenu button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));const titles={dashboard:'Home',students:'Students',admissions:'Admissions',fees:'Fees',pending:'Pending Fees',attendance:'Attendance',movement:'Entry / Exit',notices:'Notices',diary:'Daily Diary',dailyupdates:'Daily Updates',reports:'Reports',settings:'Settings'};el('pageTitle').textContent=titles[page]||page;el('sideHallName').textContent=db.settings.hallName.replace(/Study Hall/i,'').trim()||'Sri Nidhi';if(pushHistory&&page!==history.state?.page)history.pushState({page},'',location.href);({dashboard:renderDashboard,students:renderStudents,admissions:renderAdmissions,fees:renderFees,pending:renderPending,attendance:renderAttendance,movement:renderMovement,notices:renderNotices,diary:renderDiary,dailyupdates:renderDailyUpdates,reports:renderReports,settings:renderSettings}[page]||renderDashboard)()}
+window.addEventListener('popstate',e=>{if(!el('modal').classList.contains('hidden')){closeModal();history.pushState({page:currentPage},'',location.href);return}if(!el('appView').classList.contains('hidden')){const target=e.state?.page||'dashboard';render(target,false)}});
 
 function updateLiveClock(){const clock=el('liveClock');if(clock)clock.textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
 function renderDashboard(){
  const content=el('pageContent');
- content.replaceChildren();
  content.innerHTML=`
- <section class="home-intro">
-   <h1>Home</h1>
-   <p>${esc(db.settings.hallName)}</p>
- </section>
- <section class="home-brand-card">
-   <h2>${esc(db.settings.hallName)}</h2>
-   <span>Student Management System</span>
+ <section class="home-welcome">
+   <p>WELCOME BACK</p>
+   <h1>${esc(db.settings.hallName)}</h1>
+   <span>Student Management, Fees & Security</span>
  </section>
  <section class="home-menu-list" aria-label="Main modules">
-   <button class="home-menu-card" onclick="render('students')">Students</button>
-   <button class="home-menu-card" onclick="render('admissions')">Admissions</button>
-   <button class="home-menu-card" onclick="render('attendance')">Attendance</button>
-   <button class="home-menu-card" onclick="render('movement')">Entry / Exit</button>
-   <button class="home-menu-card" onclick="render('notices')">Notices</button>
-   <button class="home-menu-card" onclick="render('diary')">Daily Diary</button>
-   <button class="home-menu-card" onclick="render('fees')">Fees</button>
-   <button class="home-menu-card" onclick="render('pending')">Pending Fees</button>
-   <button class="home-menu-card" onclick="render('reports')">Reports</button>
-   <button class="home-menu-card" onclick="render('settings')">Settings</button>
+   ${homeCard('students','Students')}
+   ${homeCard('admissions','Admissions')}
+   ${homeCard('attendance','Attendance')}
+   ${homeCard('movement','Entry / Exit')}
+   ${homeCard('notices','Notices')}
+   ${homeCard('diary','Daily Diary')}
+   ${homeCard('dailyupdates','Daily Updates')}
+   ${homeCard('fees','Fees')}
+   ${homeCard('pending','Pending Fees')}
+   ${homeCard('reports','Reports')}
+   ${homeCard('settings','Settings')}
  </section>`;
 }
+function homeCard(page,label){return `<button class="home-menu-card" onclick="render('${page}')"><span>${label}</span><b aria-hidden="true">›</b></button>`}
+
+function renderDailyUpdates(){
+ const t=today(), active=db.students.filter(s=>s.status!=='Inactive');
+ const admissions=active.filter(s=>s.joinDate===t).length;
+ const feesToday=db.fees.filter(f=>f.date===t); const collected=feesToday.reduce((a,f)=>a+Number(f.paid||0),0);
+ const present=db.attendance.filter(a=>a.date===t&&a.status==='Present').length;
+ const absent=db.attendance.filter(a=>a.date===t&&a.status==='Absent').length;
+ const outside=db.movements.filter(m=>m.status==='Outside');
+ const late=outside.filter(isLateMovement);
+ const notices=(db.notices||[]).filter(n=>(n.date||'')===t).length;
+ const diary=(db.diary||[]).find(d=>d.date===t);
+ el('pageContent').innerHTML=`<div class="daily-grid">
+   ${dailyCard('Today Admissions',admissions,'admissions')}
+   ${dailyCard('Fees Collected',money(collected),'fees')}
+   ${dailyCard('Present',present,'attendance')}
+   ${dailyCard('Absent',absent,'attendance')}
+   ${dailyCard('Students Outside',outside.length,'movement')}
+   ${dailyCard('Not Returned',late.length,'movement',late.length?'alert':'')}
+   ${dailyCard('Today Notices',notices,'notices')}
+   ${dailyCard('Diary Status',diary?'Updated':'Not Updated','diary')}
+ </div>`;
+}
+function dailyCard(label,value,page,cls=''){return `<button class="daily-card ${cls}" onclick="render('${page}')"><span>${label}</span><b>${value}</b><small>Open ›</small></button>`}
 
 function overviewRow(label,value){return `<div class="d3-row"><span>${label}</span><b>${value}</b></div>`}
 function importantRow(label,value,page){return `<button class="d3-row d3-row-button" onclick="render('${page}')"><span>${label}</span><b>${value}</b></button>`}

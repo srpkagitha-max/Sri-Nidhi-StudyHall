@@ -143,3 +143,12 @@ th{background:#f3f9f8;color:#35595a}
 .home-menu-card:hover,.home-menu-card:focus-visible{background:#f0faf9;border-color:#8fd3cf;outline:none;transform:translateY(-1px)}.home-menu-card:active{transform:none}
 @media(min-width:760px){.home-menu-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.home-intro h1{font-size:22px}.home-brand-card{padding:12px 14px}.home-menu-card{min-height:42px;font-size:13.5px}}
+
+
+/* v2.5 Build 1 — final Home, Daily Updates and mobile navigation */
+.home-welcome{background:linear-gradient(135deg,#075d59,#0f7f7a 58%,#169992);color:#fff;border-radius:18px;padding:22px 20px;margin-bottom:13px;box-shadow:0 12px 28px rgba(8,91,87,.20)}
+.home-welcome p{margin:0 0 7px;font-size:10px;line-height:1;letter-spacing:1.5px;font-weight:850;opacity:.82}.home-welcome h1{margin:0 0 5px;font-size:24px;line-height:1.2}.home-welcome span{font-size:13px;opacity:.9}
+.home-menu-list{gap:7px}.home-menu-card{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:43px;padding:10px 13px;border-radius:11px}.home-menu-card b{font-size:22px;line-height:1;color:#7d9b99;font-weight:500}
+.daily-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.daily-card{min-height:112px;text-align:left;border:1px solid var(--line);background:#fff;border-radius:15px;padding:14px;box-shadow:var(--shadow);cursor:pointer}.daily-card span{display:block;color:var(--muted);font-size:12px;font-weight:700}.daily-card b{display:block;color:var(--primary2);font-size:23px;margin:8px 0}.daily-card small{color:var(--primary);font-weight:800}.daily-card.alert{border-color:#efb7bd;background:#fff5f6}.daily-card.alert b,.daily-card.alert small{color:#b52031}
+@media(min-width:760px){.daily-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:520px){.home-welcome{padding:20px 17px;border-radius:16px}.home-welcome h1{font-size:21px}.home-welcome span{font-size:12.5px}.home-menu-card{min-height:42px}.content{padding-top:13px}.daily-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.daily-card{min-height:104px;padding:12px}.daily-card b{font-size:21px}}
