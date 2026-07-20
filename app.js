@@ -547,3 +547,100 @@ function drawOutsideList(){const list=db.movements.filter(x=>x.status==='Outside
 function drawMovementHistory(){const q=(el('movementSearch')?.value||'').toLowerCase(),d=el('movementDate')?.value||'',st=el('movementStatus')?.value||'';const list=[...db.movements].sort((a,b)=>String(b.outTime).localeCompare(String(a.outTime))).filter(x=>`${studentName(x.studentId)} ${x.reason||''}`.toLowerCase().includes(q)).filter(x=>!d||String(x.outTime||'').startsWith(d)).filter(x=>!st||x.status===st);el('movementHistory').innerHTML=list.length?`<div class="movement-desktop table-wrap"><table><thead><tr><th>Student</th><th>Out</th><th>Expected</th><th>Returned</th><th>Reason</th><th>Status</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(studentName(x.studentId))}</td><td>${esc(fmtDateTime(x.outTime))}</td><td>${esc(fmtDateTime(x.expectedReturn))}</td><td>${esc(fmtDateTime(x.returnTime))}</td><td>${esc(x.reason||'-')}</td><td><span class="badge ${x.status==='Returned'?'present':movementLate(x)?'absent':'outside'}">${movementLate(x)?'Overdue':esc(x.status)}</span></td></tr>`).join('')}</tbody></table></div><div class="movement-mobile-list">${list.map(x=>`<div class="movement-history-card"><div><h4>${esc(studentName(x.studentId))}</h4><span>${esc(x.reason||'-')}</span></div><span class="badge ${x.status==='Returned'?'present':movementLate(x)?'absent':'outside'}">${movementLate(x)?'Overdue':esc(x.status)}</span><dl><dt>Out</dt><dd>${esc(fmtDateTime(x.outTime))}</dd><dt>Expected</dt><dd>${esc(fmtDateTime(x.expectedReturn))}</dd><dt>Returned</dt><dd>${esc(fmtDateTime(x.returnTime))}</dd></dl></div>`).join('')}</div>`:'<div class="empty">No movement records found</div>'}
 window.markReturned=id=>{const x=db.movements.find(m=>m.id===id);if(x){x.status='Returned';x.returnTime=v28DateTimeLocal();logAction('returned',`${studentName(x.studentId)} returned`);saveDB();renderMovement()}};
 window.exportMovementCSV=()=>{const rows=[['Student ID','Student Name','Out Time','Expected Return','Return Time','Reason','Contact / Note','Status'],...[...db.movements].sort((a,b)=>String(b.outTime).localeCompare(String(a.outTime))).map(x=>[x.studentId,studentName(x.studentId),x.outTime||'',x.expectedReturn||'',x.returnTime||'',x.reason||'',x.contactNote||'',x.status])];v28DownloadCSV('Entry-Exit-Records.csv',rows)};
+
+/* =========================================================
+   v2.8.1 COMPLETE — GPS Location Tracking for Entry / Exit
+   Note: browser GPS tracks the device on which this app is open.
+   Background tracking can pause when the browser/app is closed.
+   ========================================================= */
+const V281_GPS_INTERVAL = 5 * 60 * 1000;
+const v281Watchers = new Map();
+function v281NowLocal(){const n=new Date(Date.now()-new Date().getTimezoneOffset()*60000);return n.toISOString().slice(0,16)}
+function v281MapLink(lat,lng){return `https://www.google.com/maps?q=${Number(lat).toFixed(6)},${Number(lng).toFixed(6)}`}
+function v281LocationLabel(p){return `${Number(p.latitude).toFixed(6)}, ${Number(p.longitude).toFixed(6)}`}
+function v281Position(timeout=15000){return new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(new Error('GPS is not supported on this device.'));navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout,maximumAge:15000})})}
+function v281SavePoint(movement,pos,type='tracking'){
+ const c=pos.coords||pos;
+ movement.locationHistory=Array.isArray(movement.locationHistory)?movement.locationHistory:[];
+ const point={id:uid(),time:v281NowLocal(),latitude:Number(c.latitude),longitude:Number(c.longitude),accuracy:Math.round(Number(c.accuracy)||0),type,mapLink:v281MapLink(c.latitude,c.longitude)};
+ movement.locationHistory.push(point);
+ movement.lastLocation=point;
+ if(type==='start') movement.startLocation=point;
+ if(type==='return') movement.returnLocation=point;
+ saveDB();
+ return point;
+}
+function v281StopTracking(id){const watch=v281Watchers.get(id);if(watch!=null&&navigator.geolocation)navigator.geolocation.clearWatch(watch);v281Watchers.delete(id)}
+function v281StartTracking(id){
+ const movement=db.movements.find(x=>x.id===id);
+ if(!movement||movement.status!=='Outside'||movement.gpsTracking===false||!navigator.geolocation||v281Watchers.has(id))return;
+ let lastSaved=Number(movement.lastGpsSavedAt||0);
+ const watch=navigator.geolocation.watchPosition(pos=>{
+   const now=Date.now();
+   if(!lastSaved||now-lastSaved>=V281_GPS_INTERVAL){v281SavePoint(movement,pos,'tracking');lastSaved=now;movement.lastGpsSavedAt=now;saveDB();if(currentPage==='movement')drawOutsideList()}
+ },err=>{console.warn('GPS tracking:',err.message)},{enableHighAccuracy:true,maximumAge:30000,timeout:20000});
+ v281Watchers.set(id,watch);
+}
+function v281ResumeTracking(){db.movements.filter(x=>x.status==='Outside'&&x.gpsTracking!==false).forEach(x=>v281StartTracking(x.id))}
+function v281LocationSummary(x){const p=x.lastLocation||x.startLocation;return p?`<a target="_blank" rel="noopener" href="${esc(p.mapLink)}">${esc(v281LocationLabel(p))}</a>`:(x.location?`<a target="_blank" rel="noopener" href="${esc(x.location)}">Open Map</a>`:'-')}
+function v281HistoryButton(x){const n=Array.isArray(x.locationHistory)?x.locationHistory.length:0;return `<button class="secondary gps-history-btn" onclick="viewLocationHistory('${x.id}')">Location History (${n})</button>`}
+
+function renderMovement(){
+ const all=[...db.movements].sort((a,b)=>String(b.outTime).localeCompare(String(a.outTime))),outside=all.filter(x=>x.status==='Outside'),now=new Date(),overdue=outside.filter(x=>x.expectedReturn&&new Date(x.expectedReturn)<now),returnedToday=all.filter(x=>x.status==='Returned'&&String(x.returnTime||'').startsWith(today())).length;
+ el('pageContent').innerHTML=`
+ <div class="movement-stats"><div><small>Currently Outside</small><b>${outside.length}</b></div><div><small>Overdue</small><b>${overdue.length}</b></div><div><small>Returned Today</small><b>${returnedToday}</b></div><div><small>Total Records</small><b>${all.length}</b></div></div>
+ <div class="card movement-form-card"><div class="card-heading-row"><div><h3>Student Entry / Exit</h3><p class="muted">Exit save చేసినప్పుడు ఈ device GPS tracking start అవుతుంది.</p></div><span class="version-chip">v2.8.1 Complete</span></div>
+ <div class="gps-note"><b>GPS Note:</b> Tracking ఈ app open చేసిన phone/device locationను record చేస్తుంది. Browser పూర్తిగా close చేస్తే background tracking pause కావచ్చు.</div>
+ <form id="moveForm" class="form-grid">
+  <div class="field"><label>Student</label><select name="studentId" required>${studentOptions()}</select></div>
+  <div class="field"><label>Out Time</label><input type="datetime-local" name="outTime" value="${v281NowLocal()}" required></div>
+  <div class="field"><label>Expected Return</label><input type="datetime-local" name="expectedReturn"></div>
+  <div class="field span-2"><label>Location / Destination</label><input name="destination" placeholder="Example: Hospital, Bus Stand, Home" required></div>
+  <div class="field"><label>Reason</label><input name="reason" placeholder="Reason for going out" required></div>
+  <div class="field"><label>Contact Person</label><input name="contactPerson" placeholder="Optional"></div>
+  <div class="field"><label>Contact Number</label><input name="contactNumber" inputmode="tel" placeholder="Optional"></div>
+  <div class="field span-2"><label>Remarks</label><input name="remarks" placeholder="Optional remarks"></div>
+  <div class="field gps-toggle-field"><label><input type="checkbox" name="gpsTracking" value="yes" checked> Start GPS tracking (every 5 minutes)</label></div>
+  <div class="span-3 movement-submit-row"><button class="primary" id="saveExitBtn">Save Exit & Start Tracking</button><span id="gpsFormStatus" class="muted"></span></div>
+ </form></div>
+ <div class="card"><div class="card-heading-row"><div><h3>Currently Outside</h3><p class="muted">Live GPS points, expected return and one-tap return.</p></div></div><div id="outsideList"></div></div>
+ <div class="card"><div class="card-heading-row"><div><h3>Movement History</h3><p class="muted">Search, inspect location history and export records.</p></div></div><div class="movement-filters"><input id="movementSearch" placeholder="Search student / location / reason"><input id="movementDate" type="date"><select id="movementStatus"><option value="">All Status</option><option>Outside</option><option>Returned</option></select><button class="secondary" onclick="exportMovementCSV()">Export CSV</button></div><div id="movementHistory"></div></div>`;
+ el('moveForm').onsubmit=async e=>{
+   e.preventDefault();const form=e.target,o=Object.fromEntries(new FormData(form));
+   if(db.movements.some(m=>m.studentId===o.studentId&&m.status==='Outside'))return alert('This student is already marked outside.');
+   o.id=uid();o.status='Outside';o.returnTime='';o.gpsTracking=o.gpsTracking==='yes';o.locationHistory=[];o.createdAt=v281NowLocal();
+   const btn=el('saveExitBtn'),status=el('gpsFormStatus');btn.disabled=true;
+   try{
+     if(o.gpsTracking){status.textContent='Getting current GPS location...';const pos=await v281Position();v281SavePoint(o,pos,'start');o.lastGpsSavedAt=Date.now()}
+     db.movements.push(o);logAction('went_out',`${studentName(o.studentId)} went outside to ${o.destination||'-'}`);saveDB();
+     if(o.gpsTracking)v281StartTracking(o.id);renderMovement();
+   }catch(err){
+     const continueWithout=confirm(`GPS location రాలేదు: ${err.message}\n\nGPS లేకుండా exit record save చేయాలా?`);
+     if(continueWithout){o.gpsTracking=false;db.movements.push(o);logAction('went_out',`${studentName(o.studentId)} went outside (GPS unavailable)`);saveDB();renderMovement()}
+     else{btn.disabled=false;status.textContent='GPS permission/location required.'}
+   }
+ };
+ el('movementSearch').oninput=drawMovementHistory;el('movementDate').onchange=drawMovementHistory;el('movementStatus').onchange=drawMovementHistory;drawOutsideList();drawMovementHistory();v281ResumeTracking();
+}
+function drawOutsideList(){
+ const list=db.movements.filter(x=>x.status==='Outside').sort((a,b)=>String(a.expectedReturn||'9999').localeCompare(String(b.expectedReturn||'9999')));
+ const html=list.map(x=>`<div class="outside-card ${movementLate(x)?'overdue':''}"><div><small>${esc(db.students.find(s=>s.id===x.studentId)?.id||x.studentId)}</small><h4>${esc(studentName(x.studentId))}</h4><p><b>${esc(x.destination||'Location not entered')}</b> • ${esc(x.reason||'-')}</p><div class="gps-last">Last GPS: ${v281LocationSummary(x)}</div></div><div class="outside-times"><span>Out <b>${esc(fmtDateTime(x.outTime))}</b></span><span>Expected <b>${esc(fmtDateTime(x.expectedReturn))}</b></span><span>GPS Points <b>${Array.isArray(x.locationHistory)?x.locationHistory.length:0}</b></span></div><div class="outside-actions"><span class="badge ${movementLate(x)?'absent':'outside'}">${movementLate(x)?'Overdue':'Outside'}</span>${v281HistoryButton(x)}<button class="success" onclick="markReturned('${x.id}')">Mark Returned</button></div></div>`).join('');
+ el('outsideList').innerHTML=html||'<div class="empty">No students outside</div>';
+}
+function drawMovementHistory(){
+ const q=(el('movementSearch')?.value||'').toLowerCase(),d=el('movementDate')?.value||'',st=el('movementStatus')?.value||'';
+ const list=[...db.movements].sort((a,b)=>String(b.outTime).localeCompare(String(a.outTime))).filter(x=>`${studentName(x.studentId)} ${x.destination||''} ${x.reason||''} ${x.contactPerson||''}`.toLowerCase().includes(q)).filter(x=>!d||String(x.outTime||'').startsWith(d)).filter(x=>!st||x.status===st);
+ el('movementHistory').innerHTML=list.length?`<div class="movement-desktop table-wrap"><table><thead><tr><th>Student</th><th>Out</th><th>Expected</th><th>Returned</th><th>Location</th><th>Reason</th><th>GPS</th><th>Status</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(studentName(x.studentId))}</td><td>${esc(fmtDateTime(x.outTime))}</td><td>${esc(fmtDateTime(x.expectedReturn))}</td><td>${esc(fmtDateTime(x.returnTime))}</td><td>${esc(x.destination||'-')}</td><td>${esc(x.reason||'-')}</td><td>${v281HistoryButton(x)}</td><td><span class="badge ${x.status==='Returned'?'present':movementLate(x)?'absent':'outside'}">${movementLate(x)?'Overdue':esc(x.status)}</span></td></tr>`).join('')}</tbody></table></div><div class="movement-mobile-list">${list.map(x=>`<div class="movement-history-card"><div><h4>${esc(studentName(x.studentId))}</h4><span>${esc(x.destination||'-')} • ${esc(x.reason||'-')}</span></div><span class="badge ${x.status==='Returned'?'present':movementLate(x)?'absent':'outside'}">${movementLate(x)?'Overdue':esc(x.status)}</span><dl><dt>Out</dt><dd>${esc(fmtDateTime(x.outTime))}</dd><dt>Expected</dt><dd>${esc(fmtDateTime(x.expectedReturn))}</dd><dt>Returned</dt><dd>${esc(fmtDateTime(x.returnTime))}</dd><dt>Last GPS</dt><dd>${v281LocationSummary(x)}</dd></dl>${v281HistoryButton(x)}</div>`).join('')}</div>`:'<div class="empty">No movement records found</div>';
+}
+window.viewLocationHistory=id=>{
+ const x=db.movements.find(m=>m.id===id);if(!x)return;const points=Array.isArray(x.locationHistory)?x.locationHistory:[];
+ openModal(`<h2>Location History</h2><p><b>${esc(studentName(x.studentId))}</b> — ${esc(x.destination||'-')}</p><div class="gps-history-summary"><span>Out: <b>${esc(fmtDateTime(x.outTime))}</b></span><span>Returned: <b>${esc(fmtDateTime(x.returnTime))}</b></span><span>Points: <b>${points.length}</b></span></div>${points.length?`<div class="gps-timeline">${points.map((p,i)=>`<div class="gps-point"><div class="gps-dot"></div><div><b>${i+1}. ${p.type==='start'?'Exit Location':p.type==='return'?'Return Location':'Tracking Point'}</b><small>${esc(fmtDateTime(p.time))} • Accuracy ${esc(p.accuracy||'-')} m</small><a target="_blank" rel="noopener" href="${esc(p.mapLink)}">${esc(v281LocationLabel(p))} — Open Map</a></div></div>`).join('')}</div>`:'<div class="empty">No GPS points saved for this record.</div>'}`)
+};
+window.markReturned=async id=>{
+ const x=db.movements.find(m=>m.id===id);if(!x)return;
+ if(!confirm(`Mark ${studentName(x.studentId)} as returned?`))return;
+ try{if(x.gpsTracking!==false){const pos=await v281Position(12000);v281SavePoint(x,pos,'return')}}catch(err){console.warn('Final GPS:',err.message)}
+ v281StopTracking(id);x.status='Returned';x.returnTime=v281NowLocal();x.gpsTracking=false;logAction('returned',`${studentName(x.studentId)} returned`);saveDB();renderMovement();
+};
+window.exportMovementCSV=()=>{const rows=[['Student ID','Student Name','Out Time','Expected Return','Return Time','Destination','Reason','Contact Person','Contact Number','Remarks','GPS Points','Start Location','Last Location','Status'],...[...db.movements].sort((a,b)=>String(b.outTime).localeCompare(String(a.outTime))).map(x=>[x.studentId,studentName(x.studentId),x.outTime||'',x.expectedReturn||'',x.returnTime||'',x.destination||'',x.reason||'',x.contactPerson||'',x.contactNumber||'',x.remarks||'',Array.isArray(x.locationHistory)?x.locationHistory.length:0,x.startLocation?.mapLink||'',x.lastLocation?.mapLink||'',x.status])];v28DownloadCSV('Entry-Exit-GPS-Records.csv',rows)};
+window.addEventListener('beforeunload',()=>{for(const id of v281Watchers.keys())v281StopTracking(id)});
