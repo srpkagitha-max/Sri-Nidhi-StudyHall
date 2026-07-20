@@ -1,4 +1,5 @@
 const DB_KEY='sriNidhiStudyHallV12';
+const LEGACY_DB_KEYS=['sriNidhiStudyHallV11','sriNidhiStudyHallV10','sriNidhiStudyHall','sriNidhiDB','studyHallDB'];
 const defaultDB={
  meta:{schemaVersion:2,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},
  settings:{hallName:'Sri Nidhi Study Hall',monthlyFee:1500,feeDueDay:10,adminUser:'admin',adminPass:'1234'},
@@ -15,12 +16,51 @@ const defaultDB={
 let db=loadDB(), currentPage='dashboard';
 function uid(){return (crypto.randomUUID?.()||Date.now()+'-'+Math.random().toString(16).slice(2))}
 function clone(v){return JSON.parse(JSON.stringify(v))}
+function localISODate(value=new Date()){
+ const d=value instanceof Date?value:new Date(value);
+ if(Number.isNaN(d.getTime()))return '';
+ const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+ return `${y}-${m}-${day}`;
+}
+function normalizeArraySource(value){
+ if(Array.isArray(value))return value;
+ if(value&&typeof value==='object')return Object.values(value).filter(x=>x&&typeof x==='object');
+ return [];
+}
+function mergeUniqueRecords(primary,extra,kind){
+ const seen=new Set(),out=[];
+ const sig=x=>kind==='attendance'?`${x.studentId||x.student||x.sid||''}|${localISODate(x.date||x.attendanceDate||x.createdAt)}|${String(x.status||'').toLowerCase()}`:
+  kind==='fees'?`${x.id||''}|${x.studentId||x.student||x.sid||''}|${localISODate(x.date||x.paymentDate||x.createdAt)}|${Number(x.paid??x.amountPaid??x.received??0)}`:
+  kind==='movements'?`${x.id||''}|${x.studentId||x.student||x.sid||''}|${x.outTime||x.exitTime||x.createdAt||''}`:
+  `${x.id||''}|${JSON.stringify(x)}`;
+ for(const item of [...normalizeArraySource(primary),...normalizeArraySource(extra)]){const k=sig(item);if(!seen.has(k)){seen.add(k);out.push(item)}}
+ return out;
+}
+function extractLegacyCollections(source){
+ const d=source&&typeof source==='object'?source:{};
+ return {
+  students:normalizeArraySource(d.students||d.studentMaster||d.studentList),
+  fees:normalizeArraySource(d.fees||d.payments||d.feePayments||d.feeHistory),
+  attendance:normalizeArraySource(d.attendance||d.attendanceRecords||d.attendanceHistory||d.dailyAttendance),
+  movements:normalizeArraySource(d.movements||d.movementHistory||d.entryExit||d.entryExitRecords),
+  audit:normalizeArraySource(d.audit||d.auditLog),notices:normalizeArraySource(d.notices),diary:normalizeArraySource(d.diary||d.dailyDiary)
+ };
+}
 function loadDB(){
  try{
-  const raw=localStorage.getItem(DB_KEY), data=raw?JSON.parse(raw):clone(defaultDB);
+  const raw=localStorage.getItem(DB_KEY);let data=raw?JSON.parse(raw):clone(defaultDB),migrated=[];
   data.meta=data.meta||{schemaVersion:2,createdAt:new Date().toISOString()};
   data.settings={...clone(defaultDB.settings),...(data.settings||{})};
-  for(const key of ['students','fees','attendance','movements','audit','notices','diary']) if(!Array.isArray(data[key])) data[key]=[];
+  const direct=extractLegacyCollections(data);
+  for(const key of ['students','fees','attendance','movements','audit','notices','diary'])data[key]=direct[key];
+  for(const legacyKey of LEGACY_DB_KEYS){
+   const legacyRaw=localStorage.getItem(legacyKey);if(!legacyRaw)continue;
+   try{const legacy=extractLegacyCollections(JSON.parse(legacyRaw));let added=0;
+    for(const key of ['students','fees','attendance','movements','audit','notices','diary']){const before=data[key].length;data[key]=mergeUniqueRecords(data[key],legacy[key],key);added+=data[key].length-before}
+    if(added)migrated.push(`${legacyKey}: ${added}`);
+   }catch{}
+  }
+  if(migrated.length){data.meta.legacyMigration={at:new Date().toISOString(),sources:migrated};localStorage.setItem(DB_KEY,JSON.stringify(data))}
   return data;
  }catch{return clone(defaultDB)}
 }
@@ -31,8 +71,8 @@ function saveDB(){
 function logAction(type,details){db.audit=db.audit||[];db.audit.unshift({id:uid(),type,details,time:new Date().toISOString()});db.audit=db.audit.slice(0,250)}
 function el(id){return document.getElementById(id)}
 function money(n){return '₹'+Number(n||0).toLocaleString('en-IN')}
-function today(){return new Date().toISOString().slice(0,10)}
-function monthNow(){return new Date().toISOString().slice(0,7)}
+function today(){return localISODate()}
+function monthNow(){return today().slice(0,7)}
 function studentName(id){return db.students.find(s=>s.id===id)?.name||id}
 function esc(v=''){return String(v).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
 function hallFee(s){return Number(s?.monthlyFee||db.settings.monthlyFee||0)}
@@ -639,7 +679,7 @@ window.addEventListener('beforeunload',()=>{for(const id of v281Watchers.keys())
 /* =========================================================
    V2.9.1 LIVE REPORTS INTEGRATION
    ========================================================= */
-const V29_VERSION='2.9.1';
+const V29_VERSION='2.9.2';
 function v291IsoDate(value){
  const raw=String(value||'').trim();
  if(!raw)return '';
@@ -668,8 +708,9 @@ function renderReports(){
  v291NormalizeData();
  const from=window._v29From||v29StartOfMonth(),to=window._v29To||v29EndOfMonth(),type=window._v29Type||'attendance';
  el('pageContent').innerHTML=`
- <section class="reports-hero"><div><p>V2.9.1 LIVE REPORTING CENTRE</p><h1>Reports & Exports</h1><span>Attendance, fees, entry/exit and student-wise records are connected live.</span></div><div class="reports-version">v${V29_VERSION}</div></section>
- <div class="report-sync-bar"><span><b>Live Sync:</b> Connected to app data</span><span id="reportLastSync">Updated now</span></div>
+ <section class="reports-hero"><div><p>V2.9.2 DATA AUDIT & SYNC</p><h1>Reports & Exports</h1><span>Attendance, fees, entry/exit and student-wise records are connected live.</span></div><div class="reports-version">v${V29_VERSION}</div></section>
+ <div class="report-sync-bar"><span><b>Live Sync:</b> Unified local database</span><span id="reportLastSync">Updated now</span></div>
+ <div id="reportAudit" class="report-audit"></div>
  <div class="report-kpis" id="reportKpis"></div>
  <div class="card report-control-card"><div class="report-filters">
   <div class="field"><label>Report</label><select id="reportType"><option value="attendance">Attendance</option><option value="fees">Fees Collection</option><option value="movement">Entry / Exit + GPS</option><option value="student">Student-wise Summary</option></select></div>
@@ -682,15 +723,19 @@ function renderReports(){
  <div class="card"><div class="card-heading-row"><div><h3 id="reportHeading">Report Preview</h3><p class="muted" id="reportMeta"></p></div><button class="secondary report-refresh" onclick="v291RefreshReports()">Refresh Live Data</button></div><div id="reportTable"></div></div>`;
  el('reportType').value=type;
  ['reportType','reportFrom','reportTo','reportStudent','reportStatus'].forEach(id=>el(id).onchange=()=>{if(id==='reportType'){window._v29Type=el(id).value;el('reportStatus').innerHTML=v29StatusOptions(el(id).value)}v29GenerateReport()});
+ v292RenderAudit();
  v29GenerateReport();
 }
-window.v291RefreshReports=()=>{db=loadDB();v291NormalizeData();v29GenerateReport();const x=el('reportLastSync');if(x)x.textContent=`Updated ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}`}
+function v292DataDates(){const dates=[...db.attendance.map(x=>v291IsoDate(x.date)),...db.fees.map(x=>v291IsoDate(x.date)),...db.movements.map(x=>v291IsoDate(x.outTime))].filter(Boolean).sort();return {min:dates[0]||today(),max:dates.at(-1)||today()}}
+function v292RenderAudit(){const box=el('reportAudit');if(!box)return;const counts={students:db.students.length,attendance:db.attendance.length,fees:db.fees.length,movements:db.movements.length};const dates=v292DataDates(),migration=db.meta?.legacyMigration?.sources?.join(', ')||'No legacy data found';box.innerHTML=`<div><b>Data Audit</b><span>Students ${counts.students} • Attendance ${counts.attendance} • Fees ${counts.fees} • Entry/Exit ${counts.movements}</span></div><div><span>Saved data range: ${esc(dates.min)} to ${esc(dates.max)}</span><small>${esc(migration)}</small></div><button class="secondary" onclick="v292ShowAllData()">Show All Saved Data</button>`}
+window.v292ShowAllData=()=>{const d=v292DataDates();el('reportFrom').value=d.min;el('reportTo').value=d.max;v29GenerateReport()}
+window.v291RefreshReports=()=>{db=loadDB();v291NormalizeData();v292RenderAudit();v29GenerateReport();const x=el('reportLastSync');if(x)x.textContent=`Updated ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}`}
 function v29AttendanceRows(f){return db.attendance.filter(a=>v29InRange(a.date,f.from,f.to)&&(!f.studentId||a.studentId===f.studentId)&&(!f.status||v291NormalizeStatus(a.status,'attendance')===f.status)).sort((a,b)=>String(b.date).localeCompare(String(a.date))||studentName(a.studentId).localeCompare(studentName(b.studentId))).map(a=>[v291IsoDate(a.date),a.studentId,studentName(a.studentId),v291NormalizeStatus(a.status,'attendance'),a.time||''])}
 function v29FeeRows(f){return db.fees.filter(x=>v29InRange(x.date,f.from,f.to)&&(!f.studentId||x.studentId===f.studentId)).sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(x=>{const due=Number(x.amount||0),paid=Number(x.paid||0),status=paid>=due&&due>0?'Paid':'Partial';return [v291IsoDate(x.date),x.studentId,studentName(x.studentId),x.month||'',due,paid,Math.max(0,due-paid),x.mode||'',x.receipt||'',status]}).filter(r=>!f.status||r[9]===f.status)}
 function v29MovementRows(f){return db.movements.filter(x=>v29InRange(x.outTime,f.from,f.to)&&(!f.studentId||x.studentId===f.studentId)&&(!f.status||v291NormalizeStatus(x.status,'movement')===f.status)).sort((a,b)=>String(b.outTime).localeCompare(String(a.outTime))).map(x=>[String(x.outTime||'').replace('T',' '),x.studentId,studentName(x.studentId),x.destination||'',x.reason||'',String(x.expectedReturn||'').replace('T',' '),String(x.returnTime||'').replace('T',' '),v29DurationMinutes(x.outTime,x.returnTime),Array.isArray(x.locationHistory)?x.locationHistory.length:0,v291NormalizeStatus(x.status,'movement')])}
 function v29StudentRows(f){return db.students.filter(s=>(!f.studentId||s.id===f.studentId)&&(!f.status||v291NormalizeStatus(s.status||'Active','student')===f.status)).map(s=>{const att=db.attendance.filter(a=>a.studentId===s.id&&v29InRange(a.date,f.from,f.to)),fees=db.fees.filter(x=>x.studentId===s.id&&v29InRange(x.date,f.from,f.to)),mov=db.movements.filter(x=>x.studentId===s.id&&v29InRange(x.outTime,f.from,f.to));return [s.id,s.name,s.course||'',s.batch||'',v291NormalizeStatus(s.status||'Active','student'),att.filter(a=>v291NormalizeStatus(a.status,'attendance')==='Present').length,att.filter(a=>v291NormalizeStatus(a.status,'attendance')==='Absent').length,att.filter(a=>v291NormalizeStatus(a.status,'attendance')==='Late').length,fees.reduce((n,x)=>n+Number(x.paid||0),0),mov.length]})}
 function v29Data(){const f=v29ReportFilters();let title,headers,rows;if(f.type==='fees'){title='Fees Collection Report';headers=['Date','Student ID','Student','Month','Fee','Paid','Balance','Mode','Receipt','Status'];rows=v29FeeRows(f)}else if(f.type==='movement'){title='Entry / Exit + GPS Report';headers=['Out Time','Student ID','Student','Destination','Reason','Expected Return','Return Time','Minutes','GPS Points','Status'];rows=v29MovementRows(f)}else if(f.type==='student'){title='Student-wise Summary';headers=['Student ID','Student','Course','Batch','Status','Present','Absent','Late','Fees Collected','Movements'];rows=v29StudentRows(f)}else{title='Attendance Report';headers=['Date','Student ID','Student','Status','Marked Time'];rows=v29AttendanceRows(f)}return {f,title,headers,rows}}
-window.v29GenerateReport=()=>{const {f,title,headers,rows}=v29Data();window._v29From=f.from;window._v29To=f.to;window._v29Type=f.type;el('reportFrom').value=f.from;el('reportTo').value=f.to;el('reportHeading').textContent=title;el('reportMeta').textContent=`${f.from} to ${f.to} • ${rows.length} record${rows.length===1?'':'s'} • Live data`;el('reportTable').innerHTML=rows.length?`<div class="table-wrap report-table"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td>${(f.type==='fees'&&[4,5,6].includes(i))||(f.type==='student'&&i===8)?money(c):esc(c===null||c===undefined?'':c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:`<div class="empty"><b>No records found</b><br><span>Selected dates or filters may not contain saved ${esc(f.type)} data.</span></div>`;v29RenderKpis(f)}
+window.v29GenerateReport=()=>{const {f,title,headers,rows}=v29Data();window._v29From=f.from;window._v29To=f.to;window._v29Type=f.type;el('reportFrom').value=f.from;el('reportTo').value=f.to;el('reportHeading').textContent=title;el('reportMeta').textContent=`${f.from} to ${f.to} • ${rows.length} record${rows.length===1?'':'s'} • Live data`;v292RenderAudit();el('reportTable').innerHTML=rows.length?`<div class="table-wrap report-table"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td>${(f.type==='fees'&&[4,5,6].includes(i))||(f.type==='student'&&i===8)?money(c):esc(c===null||c===undefined?'':c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:`<div class="empty"><b>No records found</b><br><span>Selected dates or filters may not contain saved ${esc(f.type)} data.</span></div>`;v29RenderKpis(f)}
 function v29RenderKpis(f){const byStudent=x=>!f.studentId||x.studentId===f.studentId;const att=db.attendance.filter(a=>byStudent(a)&&v29InRange(a.date,f.from,f.to)),fees=db.fees.filter(x=>byStudent(x)&&v29InRange(x.date,f.from,f.to)),mov=db.movements.filter(x=>byStudent(x)&&v29InRange(x.outTime,f.from,f.to));const cards=[['Attendance Marked',att.length],['Present',att.filter(a=>v291NormalizeStatus(a.status,'attendance')==='Present').length],['Fees Collected',money(fees.reduce((n,x)=>n+Number(x.paid||0),0))],['Outside Trips',mov.length],['Returned',mov.filter(x=>v291NormalizeStatus(x.status,'movement')==='Returned').length]];el('reportKpis').innerHTML=cards.map(([l,v])=>`<div class="report-kpi"><span>${l}</span><b>${v}</b></div>`).join('')}
 window.v29ExportCSV=()=>{const {title,headers,rows}=v29Data();if(!rows.length)return alert('No report records to export.');v28DownloadCSV(`${title.replace(/[^a-z0-9]+/gi,'-')}-${today()}.csv`,[headers,...rows])}
 window.v29ExportPDF=()=>{const {f,title,headers,rows}=v29Data();if(!rows.length)return alert('No report records to export.');if(!window.jspdf)return alert('PDF library loading. Please try again.');const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:headers.length>6?'landscape':'portrait'}),w=doc.internal.pageSize.getWidth();doc.setFontSize(16);doc.text(db.settings.hallName,14,16);doc.setFontSize(12);doc.text(title,14,24);doc.setFontSize(9);doc.text(`${f.from} to ${f.to} | Records: ${rows.length} | Live integrated data`,14,31);let y=40;rows.forEach(r=>{const text=r.map((c,i)=>`${headers[i]}: ${String(c??'')}`).join(' | '),wrapped=doc.splitTextToSize(text,w-28);if(y+wrapped.length*5>doc.internal.pageSize.getHeight()-12){doc.addPage();y=16}doc.text(wrapped,14,y);y+=wrapped.length*5+3});doc.save(`${title.replace(/[^a-z0-9]+/gi,'-')}-${f.from}-to-${f.to}.pdf`)}
