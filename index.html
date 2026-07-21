@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0f7f7a" />
   <title>Sri Nidhi Study Hall</title>
-  <link rel="stylesheet" href="style.css?v=3.5.1fix" />
+  <link rel="stylesheet" href="style.css?v=3.5.2clean" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="favicon.png?v=2.5.0" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2.5.0" />
@@ -54,7 +54,6 @@
         <button data-page="attendance">Attendance</button>
         <button data-page="movement">Entry / Exit</button>
         <button data-page="fees">Fees & Reports</button>
-        <button data-page="notices">Notices</button>
       </nav>
       <button id="logoutBtn" class="logout">Logout</button>
     </aside>
@@ -76,12 +75,6 @@
     </header>
     <main class="student-main">
       <section id="studentWelcome" class="student-welcome"></section>
-      <nav class="student-nav" id="studentNav">
-        <button data-student-page="overview" class="active">Home</button>
-        <button data-student-page="attendance">Attendance</button>
-        <button data-student-page="fees">Fees</button>
-        <button data-student-page="profile">Profile</button>
-      </nav>
       <section id="studentPageContent" class="student-content"></section>
     </main>
   </div>
@@ -92,9 +85,9 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs"; window.pdfjsLib=pdfjsLib;</script>
-<script src="app.js?v=3.5.1fix"></script>
-<script src="cloud-sync.js?v=3.5.1fix"></script>
-  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=3.5.1fix", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
-<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v3.5.1 FIX • Student Dashboard</div>
+<script src="app.js?v=3.5.2clean"></script>
+<script src="cloud-sync.js?v=3.5.2clean"></script>
+  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=3.5.2clean", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
+<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v3.5.2 • Clean Stable UI</div>
 </body>
 </html>

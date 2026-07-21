@@ -1158,47 +1158,32 @@ const V35_VERSION='3.5 FINAL RC';
 
 // Simplified admin dashboard: six approved metrics, today's work and six modules.
 renderDashboard=function(){
- const t=today(), admitted=db.students.filter(s=>s.status!=='Inactive'&&admissionComplete(s));
- const todayAdmissions=db.students.filter(s=>(s.applicationDate||s.joinDate)===t).length;
- const todayFees=db.fees.filter(f=>localISODate(f.date)===t), collected=todayFees.reduce((n,f)=>n+Number(f.paid||0),0);
- const dueToday=db.students.filter(s=>s.status!=='Inactive'&&s.nextDueDate===t);
+ const active=db.students.filter(s=>s.status!=='Inactive'&&admissionComplete(s));
+ const todayAdmissions=db.students.filter(s=>s.status!=='Inactive'&&(s.applicationDate||s.joinDate)===today()).length;
+ const todayFees=db.fees.filter(f=>localISODate(f.date)===today());
+ const collected=todayFees.reduce((n,f)=>n+Number(f.paid||0),0);
+ const dueToday=v33TodayDueStudents();
  const outside=db.movements.filter(m=>v291NormalizeStatus(m.status,'movement')==='Outside');
- const todayAtt=db.attendance.filter(a=>localISODate(a.date)===t&&v291NormalizeStatus(a.status,'attendance')==='Present');
- const awaiting=db.students.filter(s=>s.status!=='Inactive'&&!admissionComplete(s));
- const overdue=outside.filter(m=>m.expectedReturn&&new Date(m.expectedReturn).getTime()<Date.now());
+ const todayAtt=db.attendance.filter(a=>localISODate(a.date)===today());
  const recent=[
-  ...db.fees.slice(-3).map(f=>({time:f.date,text:`Fee paid: ${db.students.find(s=>s.id===f.studentId)?.name||f.studentId} — ${money(f.paid)}`,page:'fees'})),
-  ...db.movements.slice(-3).map(m=>({time:m.outTime,text:`${db.students.find(s=>s.id===m.studentId)?.name||m.studentId} — ${m.status||'Outside'}`,page:'movement'})),
-  ...db.students.slice(-3).map(s=>({time:s.createdAt||s.joinDate,text:`Admission: ${s.name}`,page:'admissions'}))
- ].sort((a,b)=>String(b.time||'').localeCompare(String(a.time||''))).slice(0,5);
+  ...db.fees.slice(-4).map(f=>({time:f.date,text:`Fee paid: ${db.students.find(s=>s.id===f.studentId)?.name||f.studentId} — ${money(f.paid)}`,page:'fees'})),
+  ...db.movements.slice(-4).map(m=>({time:m.outTime,text:`${db.students.find(s=>s.id===m.studentId)?.name||m.studentId} — ${m.status||'Outside'}`,page:'movement'})),
+  ...db.students.slice(-4).map(s=>({time:s.createdAt||s.joinDate,text:`Admission: ${s.name}`,page:'admissions'}))
+ ].sort((a,b)=>String(b.time||'').localeCompare(String(a.time||''))).slice(0,6);
  el('pageContent').innerHTML=`
- <section class="v35-welcome"><div><small>ADMIN DASHBOARD</small><h1>${esc(db.settings.hallName)}</h1><p>${esc(db.settings.academicYear||'')} • Today at a glance</p></div><button class="v35-settings" onclick="render('settings')">⚙ Settings</button></section>
- <section class="v35-metrics">
-  ${v35Metric('Total Students',admitted.length,'students')}
+ <section class="v35-welcome"><div><small>ADMIN DASHBOARD</small><h1>${esc(db.settings.hallName)}</h1><p>${esc(db.settings.academicYear||'')} • Simple daily overview</p></div><button class="v35-settings" onclick="render('settings')">⚙ Settings</button></section>
+ <section class="clean-dashboard-head"><small>MAIN MANAGEMENT</small><h2>Today at a glance</h2></section>
+ <section class="v35-metrics clean-v35-metrics">
+  ${v35Metric('Total Students',active.length,'students')}
   ${v35Metric('Today Admissions',todayAdmissions,'admissions')}
   ${v35Metric('Today Collection',money(collected),'fees')}
   ${v35Metric('Today Due',dueToday.length,'fees')}
   ${v35Metric('Currently Outside',outside.length,'movement')}
   ${v35Metric('Today Attendance',todayAtt.length,'attendance')}
  </section>
- <section class="v35-work card"><div class="v35-section-title"><div><small>TODAY'S WORK</small><h2>Needs Attention</h2></div><span>${awaiting.length+dueToday.length+overdue.length}</span></div>
-  <div class="v35-work-grid">
-   ${v35Work('Admissions waiting',awaiting.length,'admissions',awaiting.length?'Complete first fee':'All clear')}
-   ${v35Work('Fees due today',dueToday.length,'fees',dueToday.length?'Follow up today':'No dues today')}
-   ${v35Work('Students outside',outside.length,'movement',overdue.length?`${overdue.length} overdue`:'Track current status')}
-   ${v35Work('Attendance received',todayAtt.length,'attendance','Student self-attendance')}
-  </div>
- </section>
- <section class="v35-modules">
-  ${v35Module('Students','Admitted student profiles and complete history','students')}
-  ${v35Module('Admissions','New, awaiting fee and completed applications','admissions')}
-  ${v35Module('Attendance','Today present, absent and self submissions','attendance')}
-  ${v35Module('Entry / Exit','Outside students and location updates','movement')}
-  ${v35Module('Fees & Reports','Collections, pending fees and PDF reports','fees')}
-  ${v35Module('Notices','Publish information to students','notices')}
- </section>
- <section class="card v35-recent"><div class="v35-section-title"><div><small>RECENT ACTIVITY</small><h2>Latest Updates</h2></div></div>${recent.length?recent.map(r=>`<button onclick="render('${r.page}')"><span>${esc(r.text)}</span><small>${esc(fmtDateTime(r.time))}</small></button>`).join(''):'<div class="empty">No recent activity.</div>'}</section>`;
+ <section class="card v35-recent clean-recent"><div class="v35-section-title"><div><small>RECENT ACTIVITY</small><h2>Latest Updates</h2></div></div>${recent.length?recent.map(r=>`<button onclick="render('${r.page}')"><span>${esc(r.text)}</span><small>${esc(fmtDateTime(r.time))}</small></button>`).join(''):'<div class="empty">No recent activity.</div>'}</section>`;
 };
+
 function v35Metric(label,value,page){return `<button class="v35-metric" onclick="render('${page}')"><span>${label}</span><b>${value}</b><small>Open ›</small></button>`}
 function v35Work(label,value,page,note){return `<button onclick="render('${page}')"><b>${value}</b><div><strong>${label}</strong><span>${note}</span></div><em>›</em></button>`}
 function v35Module(title,desc,page){return `<button class="v35-module" onclick="render('${page}')"><div><b>${title}</b><span>${desc}</span></div><em>›</em></button>`}
@@ -1222,7 +1207,7 @@ renderStudentPage=function(page='overview'){
   const att=db.attendance.filter(x=>x.studentId===s.id), present=att.filter(x=>x.status==='Present').length, marked=att.length, a={p:present,pct:marked?Math.round((present/marked)*100):0};
   const ledger=v33StudentLedger(s), f={due:ledger.balance};
   const mov=db.movements.filter(x=>x.studentId===s.id), active=mov.find(x=>x.status==='Outside');
-  el('studentWelcome').innerHTML=`<div class="v35-student-identity"><div class="student-avatar">${s.photo?`<img src="${esc(s.photo)}" alt="${esc(s.name)}">`:esc((s.name||'S').charAt(0).toUpperCase())}</div><div><small>WELCOME BACK</small><h1>${esc(s.name)}</h1><p>${esc(s.id)}${s.admissionNo?` • ${esc(s.admissionNo)}`:''}</p></div></div><button class="v35-notice-btn" onclick="renderStudentPage('notices')">Notices</button>`;
+  el('studentWelcome').innerHTML=`<div class="v35-student-identity"><div class="student-avatar">${s.photo?`<img src="${esc(s.photo)}" alt="${esc(s.name)}">`:esc((s.name||'S').charAt(0).toUpperCase())}</div><div><small>WELCOME BACK</small><h1>${esc(s.name)}</h1><p>${esc(s.id)}${s.admissionNo?` • ${esc(s.admissionNo)}`:''}</p></div></div>`;
   el('studentPageContent').innerHTML=`
    <section class="v35-student-stats">
     ${v35StudentStat('Attendance',`${a.pct}%`,`${a.p} present`,'attendance')}

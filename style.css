@@ -371,3 +371,11 @@ th{background:#f3f9f8;color:#35595a}
 @media(max-width:760px){.v35-metrics{grid-template-columns:1fr 1fr}.v35-work-grid,.v35-modules{grid-template-columns:1fr}.v35-welcome{padding:18px}.v35-welcome h1{font-size:1.3rem}.v35-settings{padding:8px 10px}.v35-page-head{align-items:flex-start;flex-direction:column}.v35-student-stats,.v35-action-grid{grid-template-columns:1fr 1fr}.v35-admission-list button{grid-template-columns:1fr auto}.v35-admission-list button em{display:none}.student-main{padding-bottom:85px}.student-nav{position:fixed;left:0;right:0;bottom:0;top:auto;background:#fff;border-top:1px solid #dce8e7;padding:8px 12px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;overflow:visible;box-shadow:0 -6px 22px rgba(20,70,67,.08)}.student-nav button[data-student-page="overview"],.student-nav button[data-student-page="attendance"],.student-nav button[data-student-page="fees"]{display:block;padding:9px 4px;font-size:.75rem}.student-nav::after{text-align:center;padding:9px 4px;font-size:.75rem}.student-welcome{padding:16px}.v35-notice-btn{font-size:.75rem}.v35-student-identity .student-avatar{width:52px;height:52px}.exam-login-header h1{font-size:clamp(21px,6vw,30px)}.exam-login-header p{font-size:clamp(11px,3vw,14px)}}
 @media(max-width:420px){.v35-student-stats,.v35-action-grid{grid-template-columns:1fr 1fr}.v35-student-stats button,.v35-action-grid button{padding:12px}.v35-profile dl,.v35-student-summary dl{grid-template-columns:105px 1fr}.exam-login-header{gap:13px}.exam-login-header .logo{width:62px;height:62px;flex-basis:62px}.exam-login-header h1{font-size:22px}.exam-login-header p{font-size:11px}}
 .student-nav button[data-student-page="profile"]{display:block}.student-nav::after{display:none!important}
+
+/* V3.5.2 CLEAN: one clear access point per feature */
+.student-nav{display:none!important}
+.student-main{padding-bottom:36px!important}
+.clean-dashboard-head{margin:4px 0 12px}.clean-dashboard-head small{letter-spacing:.12em;font-size:.7rem;font-weight:900;color:#6a807e}.clean-dashboard-head h2{margin:4px 0;color:#173d3a}
+.clean-v35-metrics{margin-bottom:16px}
+.clean-recent{margin-top:4px}
+@media(max-width:760px){.student-main{padding-bottom:28px!important}.clean-v35-metrics{grid-template-columns:1fr 1fr}.v35-metric{min-height:112px}.v35-metric b{font-size:1.45rem}}
