@@ -379,3 +379,14 @@ th{background:#f3f9f8;color:#35595a}
 .clean-v35-metrics{margin-bottom:16px}
 .clean-recent{margin-top:4px}
 @media(max-width:760px){.student-main{padding-bottom:28px!important}.clean-v35-metrics{grid-template-columns:1fr 1fr}.v35-metric{min-height:112px}.v35-metric b{font-size:1.45rem}}
+
+/* V3.5.3 clean reports */
+.v353-pdf-card{background:linear-gradient(145deg,#ffffff,#eefaf9)}
+.v353-report-modal{max-width:620px}
+.v353-report-modal h2{margin:0 0 6px;color:#163f3c}
+.v353-report-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.v353-report-grid button{border:1px solid #d6e7e5;background:#f8fbfb;border-radius:16px;padding:16px;text-align:left;color:#173f3c;min-height:100px}
+.v353-report-grid button b{display:block;font-size:16px;margin-bottom:7px}
+.v353-report-grid button span{display:block;color:#758b89;font-size:13px;line-height:1.35}
+.link-button{border:0;background:transparent;color:#0f7f7a;font-weight:800;padding:0;text-align:left}
+@media(max-width:560px){.v353-report-grid{grid-template-columns:1fr}.v353-report-grid button{min-height:84px}}

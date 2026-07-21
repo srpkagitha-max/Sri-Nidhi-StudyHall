@@ -1259,3 +1259,129 @@ v33FeeReceiptPdf=function(s,f){
 // Re-label top version badge and student hall name.
 const badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.3 RC'));if(badge)badge.textContent='v3.5 FINAL RC • Scope Locked';
 if(el('studentHallName'))el('studentHallName').textContent=db.settings.hallName||'Sri Nidhi Study Hall';
+
+/* =========================================================
+   V3.5.3 CLEAN REPORTS & NAVIGATION
+   - Replaces Today Due dashboard card with PDF Reports
+   - Clean student list sorted by admission number
+   - Student back button returns to student home
+   ========================================================= */
+const V353_VERSION='3.5.3 CLEAN REPORTS';
+
+function v353ActiveAdmittedStudents(){
+  return db.students
+    .filter(s=>s.status!=='Inactive' && admissionComplete(s))
+    .sort((a,b)=>String(a.admissionNo||'ZZZ').localeCompare(String(b.admissionNo||'ZZZ'),undefined,{numeric:true,sensitivity:'base'}) || String(a.name||'').localeCompare(String(b.name||'')));
+}
+
+function v353PdfReady(){return !!(window.jspdf&&window.jspdf.jsPDF)}
+function v353PdfTitle(doc,title,subtitle=''){
+  doc.setFillColor(15,127,122);doc.roundedRect(12,10,186,28,4,4,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(17);doc.text(db.settings.hallName||'Sri Nidhi Study Hall',18,22);
+  doc.setFontSize(10);doc.setFont('helvetica','normal');doc.text(title,18,31);if(subtitle)doc.text(subtitle,191,31,{align:'right'});
+  doc.setTextColor(31,49,48);
+}
+function v353SavePdf(doc,name){doc.save(name)}
+function v353DateAddDays(dateStr,days){const d=new Date(`${dateStr}T00:00:00`);d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
+function v353MonthStart(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`}
+function v353MonthLabel(){return new Date().toLocaleDateString('en-IN',{month:'long',year:'numeric'})}
+function v353FeeBalance(s){return Math.max(0,Number(v33StudentLedger(s)?.balance||0))}
+function v353TablePdf(title,subtitle,columns,rows,filename){
+  if(!v353PdfReady())return alert('PDF library load కాలేదు.');
+  const {jsPDF}=window.jspdf, doc=new jsPDF({orientation:columns.length>5?'landscape':'portrait'});
+  v353PdfTitle(doc,title,subtitle);
+  let y=48;const pageW=doc.internal.pageSize.getWidth(),left=12,right=12,usable=pageW-left-right;
+  const widths=columns.map(c=>c.w||1),sum=widths.reduce((a,b)=>a+b,0),actual=widths.map(w=>usable*w/sum);
+  const drawHeader=()=>{doc.setFillColor(235,248,247);doc.rect(left,y-6,usable,10,'F');doc.setFont('helvetica','bold');doc.setFontSize(8);let x=left+2;columns.forEach((c,i)=>{doc.text(c.label,x,y);x+=actual[i]});doc.setFont('helvetica','normal');y+=8};
+  drawHeader();
+  rows.forEach((r,ri)=>{
+    if(y>doc.internal.pageSize.getHeight()-16){doc.addPage();y=20;drawHeader()}
+    if(ri%2===0){doc.setFillColor(248,251,251);doc.rect(left,y-5,usable,8,'F')}
+    let x=left+2;doc.setFontSize(8);columns.forEach((c,i)=>{const txt=String(r[c.key]??'-');doc.text(doc.splitTextToSize(txt,actual[i]-3)[0]||'',x,y);x+=actual[i]});y+=8;
+  });
+  doc.setFontSize(8);doc.setTextColor(110,130,128);doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`,left,doc.internal.pageSize.getHeight()-7);
+  v353SavePdf(doc,filename);
+}
+
+window.v353UpcomingWeekPdf=function(){
+  const start=today(),end=v353DateAddDays(start,7);
+  const rows=v353ActiveAdmittedStudents().filter(s=>s.nextDueDate&&s.nextDueDate>=start&&s.nextDueDate<=end).map((s,i)=>({n:i+1,admission:s.admissionNo||'-',name:s.name,batch:s.batch||'-',due:s.nextDueDate,amount:money(Math.max(v353FeeBalance(s),hallFee(s)))}));
+  v353TablePdf('PAYMENTS DUE — NEXT 7 DAYS',`${start} to ${end}`,[{label:'#',key:'n',w:.4},{label:'Admission No',key:'admission',w:1.2},{label:'Student Name',key:'name',w:2.2},{label:'Batch',key:'batch',w:1.2},{label:'Due Date',key:'due',w:1.1},{label:'Amount',key:'amount',w:1.1}],rows,'Payments_Due_Next_7_Days.pdf');
+}
+window.v353PendingMonthPdf=function(){
+  const cutoff=v353DateAddDays(today(),-30);
+  const rows=v353ActiveAdmittedStudents().filter(s=>{
+    const ledger=v33StudentLedger(s), last=[...(ledger.rows||[])].sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0];
+    return v353FeeBalance(s)>0 || !last || String(last.date||'')<cutoff;
+  }).map((s,i)=>{const ledger=v33StudentLedger(s),last=[...(ledger.rows||[])].sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0];return {n:i+1,admission:s.admissionNo||'-',name:s.name,batch:s.batch||'-',last:last?.date||'No payment',pending:money(v353FeeBalance(s))}});
+  v353TablePdf('FEES PENDING / NOT PAID IN LAST 30 DAYS',`As on ${today()}`,[{label:'#',key:'n',w:.4},{label:'Admission No',key:'admission',w:1.2},{label:'Student Name',key:'name',w:2.1},{label:'Batch',key:'batch',w:1.1},{label:'Last Payment',key:'last',w:1.3},{label:'Pending',key:'pending',w:1.1}],rows,'Fees_Pending_Last_30_Days.pdf');
+}
+window.v353BatchStudentsPdf=function(){
+  const batches=uniqueStudentValues('batch');if(!batches.length)return alert('Batch details available లేవు.');
+  const select=`<div class="v353-report-modal"><h2>Total Student Details PDF</h2><p class="muted">Batch select చేయండి. ఈ PDFలో phone numbers ఉంటాయి.</p><div class="field"><label>Batch</label><select id="v353BatchSelect">${batches.map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('')}</select></div><button class="primary full" onclick="v353DownloadBatchPdf()">Download PDF</button></div>`;openModal(select)
+}
+window.v353DownloadBatchPdf=function(){
+  const batch=el('v353BatchSelect')?.value||'';if(!batch)return;
+  const rows=v353ActiveAdmittedStudents().filter(s=>(s.batch||'')===batch).map((s,i)=>({n:i+1,admission:s.admissionNo||'-',id:s.id,name:s.name,phone:s.phone||'-',parent:s.parentName||s.fatherName||'-',parentPhone:s.parentPhone||s.fatherPhone||'-',course:s.course||'-'}));
+  closeModal();v353TablePdf('TOTAL STUDENT DETAILS',`Batch: ${batch}`,[{label:'#',key:'n',w:.35},{label:'Admission No',key:'admission',w:1},{label:'Student ID',key:'id',w:.9},{label:'Name',key:'name',w:1.6},{label:'Phone',key:'phone',w:1.1},{label:'Parent',key:'parent',w:1.4},{label:'Parent Phone',key:'parentPhone',w:1.1},{label:'Course',key:'course',w:1.1}],rows,`Students_${batch.replace(/\W+/g,'_')}.pdf`)
+}
+window.v353ThisMonthPaymentsPdf=function(){
+  const start=v353MonthStart();
+  const rows=db.fees.filter(f=>String(f.date||'')>=start).sort((a,b)=>String(a.date).localeCompare(String(b.date))).map((f,i)=>{const s=db.students.find(x=>x.id===f.studentId)||{};return {n:i+1,date:f.date,receipt:f.receipt||'-',admission:s.admissionNo||'-',name:s.name||f.studentId,month:f.month||'-',paid:money(f.paid),mode:f.mode||'-',reference:f.reference||'-'}});
+  v353TablePdf('THIS MONTH PAYMENT DETAILS',v353MonthLabel(),[{label:'#',key:'n',w:.35},{label:'Date',key:'date',w:.9},{label:'Receipt',key:'receipt',w:1.05},{label:'Admission No',key:'admission',w:1.05},{label:'Student Name',key:'name',w:1.7},{label:'Fee Month',key:'month',w:1},{label:'Paid',key:'paid',w:.9},{label:'Mode',key:'mode',w:.8},{label:'Reference',key:'reference',w:1.2}],rows,`Payments_${v353MonthLabel().replace(/\s+/g,'_')}.pdf`)
+}
+window.v353OpenPdfReports=function(){
+  openModal(`<div class="v353-report-modal"><h2>PDF Reports</h2><p class="muted">Group sharing మరియు office records కోసం.</p><div class="v353-report-grid"><button onclick="v353UpcomingWeekPdf()"><b>Next 7 Days Due List</b><span>No phone numbers</span></button><button onclick="v353PendingMonthPdf()"><b>Last 30 Days Pending List</b><span>No phone numbers</span></button><button onclick="v353BatchStudentsPdf()"><b>Total Student Details</b><span>Select batch • phone included</span></button><button onclick="v353ThisMonthPaymentsPdf()"><b>This Month Payments</b><span>Complete payment details</span></button></div></div>`)
+}
+
+renderDashboard=function(){
+ const active=v353ActiveAdmittedStudents();
+ const todayAdmissions=db.students.filter(s=>s.status!=='Inactive'&&(s.applicationDate||s.joinDate)===today()).length;
+ const todayFees=db.fees.filter(f=>localISODate(f.date)===today());
+ const collected=todayFees.reduce((n,f)=>n+Number(f.paid||0),0);
+ const outside=db.movements.filter(m=>v291NormalizeStatus(m.status,'movement')==='Outside');
+ const todayAtt=db.attendance.filter(a=>localISODate(a.date)===today());
+ const recent=[...db.fees.slice(-4).map(f=>({time:f.date,text:`Fee paid: ${db.students.find(s=>s.id===f.studentId)?.name||f.studentId} — ${money(f.paid)}`,page:'fees'})),...db.movements.slice(-4).map(m=>({time:m.outTime,text:`${db.students.find(s=>s.id===m.studentId)?.name||m.studentId} — ${m.status||'Outside'}`,page:'movement'})),...db.students.slice(-4).map(s=>({time:s.createdAt||s.joinDate,text:`Admission: ${s.name}`,page:'admissions'}))].sort((a,b)=>String(b.time||'').localeCompare(String(a.time||''))).slice(0,6);
+ el('pageContent').innerHTML=`
+ <section class="v35-welcome"><div><small>ADMIN DASHBOARD</small><h1>${esc(db.settings.hallName)}</h1><p>${esc(db.settings.academicYear||'')} • Simple daily overview</p></div><button class="v35-settings" onclick="render('settings')">⚙ Settings</button></section>
+ <section class="v35-metrics clean-v35-metrics">
+  ${v35Metric('Total Students',active.length,'students')}
+  ${v35Metric('Today Admissions',todayAdmissions,'admissions')}
+  ${v35Metric('Today Collection',money(collected),'fees')}
+  <button class="v35-metric v353-pdf-card" onclick="v353OpenPdfReports()"><span>PDF Reports</span><b>4</b><small>Open reports ›</small></button>
+  ${v35Metric('Currently Outside',outside.length,'movement')}
+  ${v35Metric('Today Attendance',todayAtt.length,'attendance')}
+ </section>
+ <section class="card v35-recent clean-recent"><div class="v35-section-title"><div><small>RECENT ACTIVITY</small><h2>Latest Updates</h2></div></div>${recent.length?recent.map(r=>`<button onclick="render('${r.page}')"><span>${esc(r.text)}</span><small>${esc(fmtDateTime(r.time))}</small></button>`).join(''):'<div class="empty">No recent activity.</div>'}</section>`;
+};
+
+// Clean student list: admitted students only, admission-number order.
+function v353StudentCard(s){return `<article class="student-mobile-card"><div class="student-card-head" onclick="viewStudent('${s.id}')">${avatar(s)}<div><h3>${esc(s.admissionNo||s.id)} — ${esc(s.name)}</h3><p>${esc(s.id)} · ${esc(s.batch||'No Batch')}</p></div><span class="badge present">Active</span></div><div class="student-card-details"><span><b>Phone</b>${esc(s.phone||'-')}</span><span><b>Course</b>${esc(s.course||'-')}</span><span><b>Batch</b>${esc(s.batch||'-')}</span><span><b>Fee</b>${money(hallFee(s))}</span></div><div class="student-card-actions"><button class="secondary" onclick="viewStudent('${s.id}')">View Details</button><button class="secondary" onclick="editStudent('${s.id}')">Edit</button><button class="danger" onclick="deleteStudent('${s.id}')">Delete</button></div></article>`}
+function drawStudents(){
+ const q=(el('studentSearch')?.value||'').trim().toLowerCase(),g=el('genderFilter')?.value||'',st=el('statusFilter')?.value||'',batch=el('batchFilter')?.value||'';
+ const all=v353ActiveAdmittedStudents();
+ const list=all.filter(s=>(!g||s.gender===g)&&(!st||(s.status||'Active')===st)&&(!batch||(s.batch||'')===batch)&&[s.admissionNo,s.id,s.name,s.phone,s.parentName,s.parentPhone,s.fatherName,s.fatherPhone,s.course,s.batch,s.seat,s.aadhaar,s.address].join(' ').toLowerCase().includes(q));
+ const info=el('studentResultInfo');if(info)info.textContent=`Showing ${list.length} of ${all.length} admitted students`;
+ el('studentsTable').innerHTML=list.length?`<div class="student-mobile-list">${list.map(v353StudentCard).join('')}</div><div class="student-desktop-table table-wrap"><table><thead><tr><th>Admission No</th><th>Student</th><th>ID</th><th>Phone</th><th>Course / Batch</th><th>Fee</th><th>Actions</th></tr></thead><tbody>${list.map(s=>`<tr><td><b>${esc(s.admissionNo||'-')}</b></td><td><button class="link-button" onclick="viewStudent('${s.id}')">${esc(s.name)}</button></td><td>${esc(s.id)}</td><td>${esc(s.phone||'-')}</td><td>${esc(s.course||'-')} / ${esc(s.batch||'-')}</td><td>${money(hallFee(s))}</td><td><div class="row-actions"><button class="secondary" onclick="viewStudent('${s.id}')">View</button><button class="secondary" onclick="editStudent('${s.id}')">Edit</button><button class="danger" onclick="deleteStudent('${s.id}')">Delete</button></div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No admitted students match the selected search or filters.</div>';
+}
+
+// Student browser back: detail page -> student home, student home -> normal browser behavior.
+let v353StudentPage='overview',v353StudentPop=false;
+const v353BaseRenderStudentPage=renderStudentPage;
+renderStudentPage=function(page='overview'){
+  const result=v353BaseRenderStudentPage(page);
+  if(!el('studentAppView').classList.contains('hidden')){
+    if(!v353StudentPop && page!=='overview' && v353StudentPage!==page) history.pushState({studentPage:page},'',location.href);
+    v353StudentPage=page;
+  }
+  return result;
+};
+window.addEventListener('popstate',()=>{
+  if(el('studentAppView').classList.contains('hidden'))return;
+  if(v353StudentPage!=='overview'){
+    v353StudentPop=true;renderStudentPage('overview');v353StudentPop=false;
+  }
+});
+
+// Version marker
+const v353Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.5.2'));if(v353Badge)v353Badge.textContent='v3.5.3 • Clean Reports & Navigation';
