@@ -282,3 +282,35 @@ th{background:#f3f9f8;color:#35595a}
   .latest-real-location{align-items:flex-start;flex-direction:column}.latest-real-location a{width:100%}
   .admin-movement-details{padding:12px}.admin-movement-details dl{grid-template-columns:95px 1fr;gap:7px 10px}
 }
+
+/* V3.1.2 — neat student login brand header */
+@media(max-width:560px){
+  .exam-login-header{
+    display:grid;
+    grid-template-columns:58px minmax(0,1fr);
+    align-items:center;
+    justify-content:center;
+    column-gap:14px;
+    padding-left:24px;
+    padding-right:24px;
+  }
+  .exam-login-header>div:last-child{min-width:0;text-align:left}
+  .exam-login-header h1{
+    font-size:clamp(19px,5.6vw,23px);
+    line-height:1.08;
+    white-space:nowrap;
+    overflow:visible;
+    text-overflow:clip;
+  }
+  .exam-login-header p{
+    font-size:clamp(10px,3.1vw,12px);
+    line-height:1.25;
+    white-space:nowrap;
+  }
+}
+@media(max-width:390px){
+  .exam-login-header{grid-template-columns:52px minmax(0,1fr);column-gap:11px;padding-left:18px;padding-right:18px}
+  .exam-login-header .logo{width:52px;height:52px;flex-basis:52px;font-size:21px}
+  .exam-login-header h1{font-size:18px}
+  .exam-login-header p{font-size:10px}
+}
