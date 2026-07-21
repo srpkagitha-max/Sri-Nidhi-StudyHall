@@ -3,7 +3,7 @@ const ATTENDANCE_BACKUP_KEY='sriNidhiAttendanceV293';
 const LEGACY_DB_KEYS=['sriNidhiStudyHallV11','sriNidhiStudyHallV10','sriNidhiStudyHall','sriNidhiDB','studyHallDB'];
 const defaultDB={
  meta:{schemaVersion:2,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},
- settings:{hallName:'Sri Nidhi Study Hall',monthlyFee:1500,feeDueDay:10,adminUser:'admin',adminPass:'1234'},
+ settings:{hallName:'Sri Nidhi Study Hall',academicYear:'2026-27',phone:'',address:'',monthlyFee:1500,feeDueDay:10,adminUser:'admin',adminPass:'1234',autoBackupDays:7},
  students:[
   {id:'SN0001',name:'Anusha',gender:'Female',dob:'',phone:'9876543210',parentName:'',parentPhone:'9123456780',emergencyPhone:'',address:'',course:'DSC',batch:'Morning',seat:'G-01',joinDate:'2026-07-01',monthlyFee:1500,idProof:'',status:'Active',photo:''},
   {id:'SN0002',name:'Kavya',gender:'Female',dob:'',phone:'9876501234',parentName:'',parentPhone:'9012345678',emergencyPhone:'',address:'',course:'TET',batch:'Morning',seat:'G-02',joinDate:'2026-07-03',monthlyFee:1500,idProof:'',status:'Active',photo:''},
@@ -67,7 +67,7 @@ function loadDB(){
  }catch{return clone(defaultDB)}
 }
 function saveDB(){
- try{db.meta=db.meta||{};db.meta.schemaVersion=3;db.meta.updatedAt=new Date().toISOString();localStorage.setItem(DB_KEY,JSON.stringify(db));if(typeof currentPage!=='undefined'&&currentPage==='reports'&&typeof window.v29GenerateReport==='function'&&document.getElementById('reportTable'))setTimeout(()=>window.v29GenerateReport(),0);return true}
+ try{db.meta=db.meta||{};db.meta.schemaVersion=4;db.meta.updatedAt=new Date().toISOString();localStorage.setItem(DB_KEY,JSON.stringify(db));if(typeof currentPage!=='undefined'&&currentPage==='reports'&&typeof window.v29GenerateReport==='function'&&document.getElementById('reportTable'))setTimeout(()=>window.v29GenerateReport(),0);return true}
  catch(e){alert('Data save కాలేదు. Photo size తగ్గించి మళ్లీ ప్రయత్నించండి.');return false}
 }
 function persistAttendanceVerified(){
@@ -86,7 +86,7 @@ function upsertAttendanceRecord(studentId,status,date){
  const sid=String(studentId||'').trim(),day=localISODate(date||today()),st=v291NormalizeStatus(status,'attendance');
  if(!sid||!day||!st)return false;
  db.attendance=normalizeArraySource(db.attendance).filter(x=>attendanceKey(x.studentId||x.student||x.sid,x.date||x.attendanceDate||x.createdAt)!==attendanceKey(sid,day));
- db.attendance.push({id:uid(),studentId:sid,date:day,status:st,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),updatedAt:new Date().toISOString(),source:'attendance-module-v2.9.3'});
+ db.attendance.push({id:uid(),studentId:sid,date:day,status:st,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),updatedAt:new Date().toISOString(),source:'attendance-module-v3.0-beta-1'});
  return persistAttendanceVerified();
 }
 function showAttendanceSaveState(message,ok=true){const x=el('attendanceSaveState');if(!x)return;x.textContent=message;x.className=`attendance-save-state ${ok?'ok':'error'}`;clearTimeout(window._attendanceStateTimer);window._attendanceStateTimer=setTimeout(()=>{if(x)x.textContent=''},2500)}
@@ -119,25 +119,26 @@ window.addEventListener('popstate',e=>{if(!el('modal').classList.contains('hidde
 
 function updateLiveClock(){const clock=el('liveClock');if(clock)clock.textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
 function renderDashboard(){
- const content=el('pageContent');
+ const content=el('pageContent'),t=today(),active=db.students.filter(s=>(s.status||'Active')!=='Inactive');
+ const todayAtt=db.attendance.filter(a=>localISODate(a.date)===t),present=todayAtt.filter(a=>v291NormalizeStatus(a.status,'attendance')==='Present').length;
+ const todayFees=db.fees.filter(f=>localISODate(f.date)===t),collected=todayFees.reduce((n,f)=>n+Number(f.paid||0),0);
+ const outside=db.movements.filter(m=>v291NormalizeStatus(m.status,'movement')==='Outside').length;
+ const lastBackup=db.meta?.lastBackupAt?new Date(db.meta.lastBackupAt).toLocaleString('en-IN'):'Not created yet';
  content.innerHTML=`
  <section class="home-welcome">
-   <p>WELCOME BACK</p>
+   <p>V3.0 BETA-1</p>
    <h1>${esc(db.settings.hallName)}</h1>
-   <span>Student Management, Fees & Security</span>
+   <span>${esc(db.settings.academicYear||'')} • Student Management, Fees & Security</span>
  </section>
+ <section class="v3-live-grid">
+  <button onclick="render('students')"><small>Active Students</small><b>${active.length}</b></button>
+  <button onclick="render('attendance')"><small>Present Today</small><b>${present}</b></button>
+  <button onclick="render('fees')"><small>Collected Today</small><b>${money(collected)}</b></button>
+  <button onclick="render('movement')"><small>Currently Outside</small><b>${outside}</b></button>
+ </section>
+ <div class="v3-sync-note"><span><b>Live database:</b> ${db.attendance.length} attendance • ${db.fees.length} fees • ${db.movements.length} entry/exit records</span><small>Last backup: ${esc(lastBackup)}</small></div>
  <section class="home-menu-list" aria-label="Main modules">
-   ${homeCard('students','Students')}
-   ${homeCard('admissions','Admissions')}
-   ${homeCard('attendance','Attendance')}
-   ${homeCard('movement','Entry / Exit')}
-   ${homeCard('notices','Notices')}
-   ${homeCard('diary','Daily Diary')}
-   ${homeCard('dailyupdates','Daily Updates')}
-   ${homeCard('fees','Fees')}
-   ${homeCard('pending','Pending Fees')}
-   ${homeCard('reports','Reports')}
-   ${homeCard('settings','Settings')}
+   ${homeCard('students','Students')}${homeCard('admissions','Admissions')}${homeCard('attendance','Attendance')}${homeCard('movement','Entry / Exit')}${homeCard('notices','Notices')}${homeCard('diary','Daily Diary')}${homeCard('dailyupdates','Daily Updates')}${homeCard('fees','Fees')}${homeCard('pending','Pending Fees')}${homeCard('reports','Reports')}${homeCard('settings','Settings')}
  </section>`;
 }
 function homeCard(page,label){return `<button class="home-menu-card" onclick="render('${page}')"><span>${label}</span><b aria-hidden="true">›</b></button>`}
@@ -220,9 +221,13 @@ window.markAttendance=(studentId,status)=>{db.attendance=db.attendance.filter(x=
 window.markReturned=id=>{const x=db.movements.find(m=>m.id===id);if(x){x.status='Returned';x.returnTime=new Date().toISOString().slice(0,16);logAction('returned',`${studentName(x.studentId)} returned`);saveDB();renderMovement()}};
 function renderReports(){el('pageContent').innerHTML=`<div class="grid stats"><div class="card"><h3>Student List</h3><p class="muted">All student details.</p><button class="primary" onclick="downloadStudentsPDF()">Download PDF</button></div><div class="card"><h3>Pending Fees</h3><p class="muted">Current month pending list.</p><button class="primary" onclick="downloadPendingPDF()">Download PDF</button></div><div class="card"><h3>Backup</h3><p class="muted">Download complete data backup.</p><button class="secondary" onclick="downloadBackup()">Download JSON</button></div><div class="card"><h3>Restore Backup</h3><p class="muted">Restore previously downloaded JSON.</p><input id="restoreFile" type="file" accept="application/json"><button class="secondary" onclick="restoreBackup()">Restore</button></div></div>`}
 window.downloadStudentsPDF=()=>{const {jsPDF}=window.jspdf,doc=new jsPDF();doc.setFontSize(16);doc.text(`${db.settings.hallName} - Student List`,14,18);doc.setFontSize(10);let y=30;db.students.forEach((s,i)=>{doc.text(`${i+1}. ${s.id} - ${s.name} | ${s.phone} | Seat: ${s.seat||'-'} | ${s.course||'-'}`,14,y);y+=8;if(y>280){doc.addPage();y=20}});doc.save('Sri-Nidhi-Students.pdf')};
-window.downloadBackup=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.download='sri-nidhi-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
-window.restoreBackup=()=>{const f=el('restoreFile').files[0];if(!f)return alert('Select backup file');const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.students||!x.settings)throw Error();db=x;saveDB();alert('Backup restored');render('dashboard')}catch{alert('Invalid backup file')}};r.readAsText(f)};
-function renderSettings(){el('pageContent').innerHTML=`<div class="card"><h3>Settings</h3><form id="settingsForm" class="form-grid"><div class="field"><label>Study Hall Name</label><input name="hallName" value="${esc(db.settings.hallName)}"></div><div class="field"><label>Default Monthly Fee</label><input type="number" name="monthlyFee" value="${db.settings.monthlyFee}"></div><div class="field"><label>Monthly Fee Due Day</label><input type="number" min="1" max="28" name="feeDueDay" value="${db.settings.feeDueDay||10}"></div><div class="field"><label>Admin Username</label><input name="adminUser" value="${esc(db.settings.adminUser)}"></div><div class="field"><label>Admin Password</label><input name="adminPass" value="${esc(db.settings.adminPass)}"></div><div class="span-3 actions"><button class="primary">Save Settings</button><button type="button" class="danger" onclick="resetDemo()">Reset Demo Data</button></div></form></div>`;el('settingsForm').onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target));o.monthlyFee=Number(o.monthlyFee);o.feeDueDay=Number(o.feeDueDay||10);db.settings=o;logAction('settings','Settings updated');saveDB();alert('Settings saved');render('dashboard')}}
+window.downloadBackup=()=>{db.meta=db.meta||{};db.meta.lastBackupAt=new Date().toISOString();saveDB();const payload={product:'Sri Nidhi Study Hall ERP',version:'3.0-beta-1',exportedAt:new Date().toISOString(),database:db};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));a.download=`Sri-Nidhi-Backup-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+window.restoreBackup=()=>{const f=el('restoreFile')?.files?.[0];if(!f)return alert('Select backup file');const r=new FileReader();r.onload=()=>{try{const raw=JSON.parse(r.result),x=raw.database||raw;if(!x||!Array.isArray(x.students)||!x.settings)throw Error('Invalid structure');if(!confirm(`Restore backup with ${x.students.length} students? Current data will be replaced.`))return;db={...clone(defaultDB),...x,settings:{...clone(defaultDB.settings),...(x.settings||{})}};v291NormalizeData();db.meta=db.meta||{};db.meta.lastRestoreAt=new Date().toISOString();if(!saveDB())throw Error('Save failed');localStorage.setItem(ATTENDANCE_BACKUP_KEY,JSON.stringify(db.attendance||[]));alert('Backup restored and verified');render('dashboard')}catch(e){console.error(e);alert('Invalid or damaged backup file')}};r.readAsText(f)};
+window.runDataIntegrityCheck=()=>{v291NormalizeData();const known=new Set(db.students.map(s=>String(s.id))),orphanAttendance=db.attendance.filter(a=>!known.has(String(a.studentId))).length,orphanFees=db.fees.filter(f=>!known.has(String(f.studentId))).length,duplicateStudents=db.students.length-new Set(db.students.map(s=>String(s.id))).size;const ok=saveDB();alert(`Data Integrity Check\n\nStudents: ${db.students.length}\nAttendance: ${db.attendance.length}\nFees: ${db.fees.length}\nEntry/Exit: ${db.movements.length}\nDuplicate student IDs: ${duplicateStudents}\nOrphan attendance: ${orphanAttendance}\nOrphan fees: ${orphanFees}\nStorage verification: ${ok?'Passed':'Failed'}`)};
+function renderSettings(){const lastBackup=db.meta?.lastBackupAt?new Date(db.meta.lastBackupAt).toLocaleString('en-IN'):'Not created';el('pageContent').innerHTML=`
+<section class="settings-hero"><div><p>V3.0 BETA-1</p><h1>Study Hall Settings</h1><span>Profile, fee defaults, security and data safety.</span></div><b>Schema v${db.meta?.schemaVersion||4}</b></section>
+<div class="card"><form id="settingsForm" class="form-grid"><div class="section-title">Study Hall Profile</div><div class="field"><label>Study Hall Name</label><input name="hallName" value="${esc(db.settings.hallName)}" required></div><div class="field"><label>Academic Year</label><input name="academicYear" value="${esc(db.settings.academicYear||'2026-27')}"></div><div class="field"><label>Contact Phone</label><input name="phone" inputmode="tel" value="${esc(db.settings.phone||'')}"></div><div class="field span-3"><label>Address</label><textarea name="address">${esc(db.settings.address||'')}</textarea></div><div class="section-title">Fee Defaults</div><div class="field"><label>Default Monthly Fee</label><input type="number" min="0" name="monthlyFee" value="${Number(db.settings.monthlyFee||0)}"></div><div class="field"><label>Monthly Fee Due Day</label><input type="number" min="1" max="28" name="feeDueDay" value="${Number(db.settings.feeDueDay||10)}"></div><div class="field"><label>Backup Reminder (days)</label><input type="number" min="1" max="90" name="autoBackupDays" value="${Number(db.settings.autoBackupDays||7)}"></div><div class="section-title">Admin Login</div><div class="field"><label>Admin Username</label><input name="adminUser" value="${esc(db.settings.adminUser)}" required></div><div class="field"><label>Admin Password</label><input type="password" name="adminPass" value="${esc(db.settings.adminPass)}" required></div><div class="span-3 actions"><button class="primary">Save Settings</button></div></form></div>
+<div class="settings-data-grid"><div class="card"><h3>Backup Database</h3><p class="muted">Students, fees, attendance, movement, notices and settings.</p><button class="secondary" onclick="downloadBackup()">Download Verified Backup</button><small>Last backup: ${esc(lastBackup)}</small></div><div class="card"><h3>Restore Database</h3><p class="muted">Select a Sri Nidhi JSON backup. Current data will be replaced after confirmation.</p><input id="restoreFile" type="file" accept="application/json"><button class="secondary" onclick="restoreBackup()">Validate & Restore</button></div><div class="card"><h3>Data Integrity</h3><p class="muted">Normalize saved records and check duplicates/orphan records.</p><button class="secondary" onclick="runDataIntegrityCheck()">Run Integrity Check</button></div><div class="card danger-zone"><h3>Danger Zone</h3><p class="muted">Reset all local data to demo records.</p><button class="danger" onclick="resetDemo()">Reset Demo Data</button></div></div>`;el('settingsForm').onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target));o.monthlyFee=Math.max(0,Number(o.monthlyFee||0));o.feeDueDay=Math.min(28,Math.max(1,Number(o.feeDueDay||10)));o.autoBackupDays=Math.min(90,Math.max(1,Number(o.autoBackupDays||7)));db.settings={...db.settings,...o};logAction('settings','V3 settings updated');saveDB();alert('Settings saved successfully');render('dashboard')}}
 window.resetDemo=()=>{if(confirm('Reset all data?')){db=clone(defaultDB);saveDB();render('dashboard')}};
 window.render=render;
 
@@ -585,7 +590,7 @@ function drawAttendanceDay(){
  el('attendanceTable').innerHTML=students.length?`<div class="attendance-desktop-table table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Batch</th><th>Status</th><th>Marked Time</th><th>Action</th></tr></thead><tbody>${students.map(s=>{const a=v28AttendanceRecord(s.id,d),st=a?.status||'Not Marked';return `<tr><td>${esc(s.id)}</td><td>${esc(s.name)}</td><td>${esc(s.batch||'-')}</td><td><span class="badge ${v28StatusClass(st)}">${esc(st)}</span></td><td>${esc(a?.time||'-')}</td><td class="attendance-row-actions">${['Present','Absent','Late','Leave'].map(x=>`<button class="${x==='Present'?'success':x==='Absent'?'danger':'secondary'}" onclick="markAttendanceForDate('${s.id}','${x}','${d}')">${x}</button>`).join('')}</td></tr>`}).join('')}</tbody></table></div><div class="attendance-mobile-list">${cards}</div>`:'<div class="empty">No students found</div>';
 }
 window.markAttendanceForDate=(studentId,status,date)=>{const ok=upsertAttendanceRecord(studentId,status,date);if(ok){logAction('attendance',`${studentName(studentId)} marked ${status} on ${localISODate(date)}`);saveDB();drawAttendanceDay();drawAttendanceSummary();renderAttendanceStatsOnly();showAttendanceSaveState(`${studentName(studentId)} - ${status} saved`,true)}else showAttendanceSaveState('Attendance save failed',false)};
-window.markAllAttendance=status=>{const d=localISODate(el('attendanceDate').value),active=db.students.filter(s=>s.status!=='Inactive');const ids=new Set(active.map(s=>String(s.id).trim()));db.attendance=normalizeArraySource(db.attendance).filter(x=>!(ids.has(String(x.studentId||x.student||x.sid||'').trim())&&localISODate(x.date||x.attendanceDate||x.createdAt)===d));const t=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});active.forEach(s=>db.attendance.push({id:uid(),studentId:String(s.id).trim(),date:d,status:v291NormalizeStatus(status,'attendance'),time:t,updatedAt:new Date().toISOString(),source:'attendance-module-v2.9.3'}));if(persistAttendanceVerified()){logAction('attendance_bulk',`All students marked ${status} on ${d}`);saveDB();renderAttendance()}else showAttendanceSaveState('Bulk attendance save failed',false)};
+window.markAllAttendance=status=>{const d=localISODate(el('attendanceDate').value),active=db.students.filter(s=>s.status!=='Inactive');const ids=new Set(active.map(s=>String(s.id).trim()));db.attendance=normalizeArraySource(db.attendance).filter(x=>!(ids.has(String(x.studentId||x.student||x.sid||'').trim())&&localISODate(x.date||x.attendanceDate||x.createdAt)===d));const t=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});active.forEach(s=>db.attendance.push({id:uid(),studentId:String(s.id).trim(),date:d,status:v291NormalizeStatus(status,'attendance'),time:t,updatedAt:new Date().toISOString(),source:'attendance-module-v3.0-beta-1'}));if(persistAttendanceVerified()){logAction('attendance_bulk',`All students marked ${status} on ${d}`);saveDB();renderAttendance()}else showAttendanceSaveState('Bulk attendance save failed',false)};
 window.clearAttendanceFilters=()=>{el('attendanceSearch').value='';el('attendanceFilter').value='';drawAttendanceDay()};
 function renderAttendanceStatsOnly(){/* renderAttendance refresh is intentionally avoided while tapping multiple rows */}
 function drawAttendanceSummary(){const m=el('attendanceMonth').value,list=db.students.filter(s=>s.status!=='Inactive').map(s=>{const a=db.attendance.filter(x=>x.studentId===s.id&&x.date.startsWith(m));return {s,p:a.filter(x=>x.status==='Present').length,a:a.filter(x=>x.status==='Absent').length,l:a.filter(x=>x.status==='Late').length,lv:a.filter(x=>x.status==='Leave').length}});el('attendanceSummary').innerHTML=`<div class="table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Present</th><th>Absent</th><th>Late</th><th>Leave</th><th>Marked Days</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.s.id)}</td><td>${esc(x.s.name)}</td><td>${x.p}</td><td>${x.a}</td><td>${x.l}</td><td>${x.lv}</td><td>${x.p+x.a+x.l+x.lv}</td></tr>`).join('')}</tbody></table></div>`}
@@ -730,7 +735,7 @@ function renderReports(){
  v291NormalizeData();
  const from=window._v29From||v29StartOfMonth(),to=window._v29To||v29EndOfMonth(),type=window._v29Type||'attendance';
  el('pageContent').innerHTML=`
- <section class="reports-hero"><div><p>V2.9.3 ATTENDANCE SAVE ENGINE</p><h1>Reports & Exports</h1><span>Attendance, fees, entry/exit and student-wise records are connected live.</span></div><div class="reports-version">v${V29_VERSION}</div></section>
+ <section class="reports-hero"><div><p>V3.0 BETA-1 LIVE DATA ENGINE</p><h1>Reports & Exports</h1><span>Attendance, fees, entry/exit and student-wise records are synchronized live.</span></div><div class="reports-version">v${V29_VERSION}</div></section>
  <div class="report-sync-bar"><span><b>Live Sync:</b> Unified local database</span><span id="reportLastSync">Updated now</span></div>
  <div id="reportAudit" class="report-audit"></div>
  <div class="report-kpis" id="reportKpis"></div>
