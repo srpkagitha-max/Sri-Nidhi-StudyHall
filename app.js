@@ -1,4 +1,5 @@
 const DB_KEY='sriNidhiStudyHallV12';
+const ATTENDANCE_BACKUP_KEY='sriNidhiAttendanceV293';
 const LEGACY_DB_KEYS=['sriNidhiStudyHallV11','sriNidhiStudyHallV10','sriNidhiStudyHall','sriNidhiDB','studyHallDB'];
 const defaultDB={
  meta:{schemaVersion:2,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},
@@ -60,6 +61,7 @@ function loadDB(){
     if(added)migrated.push(`${legacyKey}: ${added}`);
    }catch{}
   }
+  try{const backupRaw=localStorage.getItem(ATTENDANCE_BACKUP_KEY);if(backupRaw){const backup=JSON.parse(backupRaw);data.attendance=mergeUniqueRecords(data.attendance,backup,'attendance')}}catch{}
   if(migrated.length){data.meta.legacyMigration={at:new Date().toISOString(),sources:migrated};localStorage.setItem(DB_KEY,JSON.stringify(data))}
   return data;
  }catch{return clone(defaultDB)}
@@ -68,6 +70,26 @@ function saveDB(){
  try{db.meta=db.meta||{};db.meta.schemaVersion=3;db.meta.updatedAt=new Date().toISOString();localStorage.setItem(DB_KEY,JSON.stringify(db));if(typeof currentPage!=='undefined'&&currentPage==='reports'&&typeof window.v29GenerateReport==='function'&&document.getElementById('reportTable'))setTimeout(()=>window.v29GenerateReport(),0);return true}
  catch(e){alert('Data save కాలేదు. Photo size తగ్గించి మళ్లీ ప్రయత్నించండి.');return false}
 }
+function persistAttendanceVerified(){
+ try{
+  db.attendance=normalizeArraySource(db.attendance).map(a=>({...a,studentId:String(a.studentId||a.student||a.sid||'').trim(),date:localISODate(a.date||a.attendanceDate||a.createdAt),status:v291NormalizeStatus(a.status,'attendance')})).filter(a=>a.studentId&&a.date&&a.status);
+  localStorage.setItem(ATTENDANCE_BACKUP_KEY,JSON.stringify(db.attendance));
+  if(!saveDB())return false;
+  const stored=JSON.parse(localStorage.getItem(DB_KEY)||'{}');
+  const verified=Array.isArray(stored.attendance)&&stored.attendance.length===db.attendance.length;
+  if(!verified)throw new Error('Attendance verification failed');
+  return true;
+ }catch(e){console.error(e);alert('Attendance save కాలేదు. Browser storage permission/check చేసి మళ్లీ ప్రయత్నించండి.');return false}
+}
+function attendanceKey(studentId,date){return `${String(studentId||'').trim()}|${localISODate(date)}`}
+function upsertAttendanceRecord(studentId,status,date){
+ const sid=String(studentId||'').trim(),day=localISODate(date||today()),st=v291NormalizeStatus(status,'attendance');
+ if(!sid||!day||!st)return false;
+ db.attendance=normalizeArraySource(db.attendance).filter(x=>attendanceKey(x.studentId||x.student||x.sid,x.date||x.attendanceDate||x.createdAt)!==attendanceKey(sid,day));
+ db.attendance.push({id:uid(),studentId:sid,date:day,status:st,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),updatedAt:new Date().toISOString(),source:'attendance-module-v2.9.3'});
+ return persistAttendanceVerified();
+}
+function showAttendanceSaveState(message,ok=true){const x=el('attendanceSaveState');if(!x)return;x.textContent=message;x.className=`attendance-save-state ${ok?'ok':'error'}`;clearTimeout(window._attendanceStateTimer);window._attendanceStateTimer=setTimeout(()=>{if(x)x.textContent=''},2500)}
 function logAction(type,details){db.audit=db.audit||[];db.audit.unshift({id:uid(),type,details,time:new Date().toISOString()});db.audit=db.audit.slice(0,250)}
 function el(id){return document.getElementById(id)}
 function money(n){return '₹'+Number(n||0).toLocaleString('en-IN')}
@@ -548,7 +570,7 @@ function renderAttendance(){
    <button class="secondary" onclick="clearAttendanceFilters()">Clear Filters</button>
   </div>
   <div class="bulk-attendance-actions"><button class="success" onclick="markAllAttendance('Present')">Mark All Present</button><button class="danger" onclick="markAllAttendance('Absent')">Mark All Absent</button><button class="secondary" onclick="exportAttendanceCSV()">Export CSV</button><button class="secondary" onclick="downloadAttendancePDF()">Day PDF</button></div>
-  <div id="attendanceResultInfo" class="result-info"></div><div id="attendanceTable"></div>
+  <div id="attendanceSaveState" class="attendance-save-state"></div><div id="attendanceResultInfo" class="result-info"></div><div id="attendanceTable"></div>
  </div>
  <div class="card"><div class="card-heading-row"><div><h3>Monthly Attendance Summary</h3><p class="muted">Present, absent, late and leave totals.</p></div></div><div class="attendance-summary-tools"><input id="attendanceMonth" type="month" value="${d.slice(0,7)}"><button class="primary" onclick="downloadMonthlyAttendancePDF()">Monthly PDF</button></div><div id="attendanceSummary"></div></div>`;
  el('attendanceDate').onchange=e=>{window._attendanceDate=e.target.value;renderAttendance()};
@@ -562,8 +584,8 @@ function drawAttendanceDay(){
  const cards=students.map(s=>{const a=v28AttendanceRecord(s.id,d),st=a?.status||'Not Marked';return `<div class="attendance-mobile-card"><div class="attendance-mobile-head"><div><small>${esc(s.id)}</small><h4>${esc(s.name)}</h4><span>${esc(s.batch||'No Batch')}</span></div><span class="badge ${v28StatusClass(st)}">${esc(st)}</span></div><div class="attendance-time">Marked time: <b>${esc(a?.time||'-')}</b></div><div class="attendance-buttons">${['Present','Absent','Late','Leave'].map(x=>`<button class="${x==='Present'?'success':x==='Absent'?'danger':'secondary'}" onclick="markAttendanceForDate('${s.id}','${x}','${d}')">${x}</button>`).join('')}</div></div>`}).join('');
  el('attendanceTable').innerHTML=students.length?`<div class="attendance-desktop-table table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Batch</th><th>Status</th><th>Marked Time</th><th>Action</th></tr></thead><tbody>${students.map(s=>{const a=v28AttendanceRecord(s.id,d),st=a?.status||'Not Marked';return `<tr><td>${esc(s.id)}</td><td>${esc(s.name)}</td><td>${esc(s.batch||'-')}</td><td><span class="badge ${v28StatusClass(st)}">${esc(st)}</span></td><td>${esc(a?.time||'-')}</td><td class="attendance-row-actions">${['Present','Absent','Late','Leave'].map(x=>`<button class="${x==='Present'?'success':x==='Absent'?'danger':'secondary'}" onclick="markAttendanceForDate('${s.id}','${x}','${d}')">${x}</button>`).join('')}</td></tr>`}).join('')}</tbody></table></div><div class="attendance-mobile-list">${cards}</div>`:'<div class="empty">No students found</div>';
 }
-window.markAttendanceForDate=(studentId,status,date)=>{db.attendance=db.attendance.filter(x=>!(x.studentId===studentId&&x.date===date));db.attendance.push({studentId,date,status,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})});logAction('attendance',`${studentName(studentId)} marked ${status} on ${date}`);saveDB();drawAttendanceDay();drawAttendanceSummary();renderAttendanceStatsOnly()};
-window.markAllAttendance=status=>{const d=el('attendanceDate').value;db.students.filter(s=>s.status!=='Inactive').forEach(s=>{db.attendance=db.attendance.filter(x=>!(x.studentId===s.id&&x.date===d));db.attendance.push({studentId:s.id,date:d,status,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})})});logAction('attendance_bulk',`All students marked ${status} on ${d}`);saveDB();renderAttendance()};
+window.markAttendanceForDate=(studentId,status,date)=>{const ok=upsertAttendanceRecord(studentId,status,date);if(ok){logAction('attendance',`${studentName(studentId)} marked ${status} on ${localISODate(date)}`);saveDB();drawAttendanceDay();drawAttendanceSummary();renderAttendanceStatsOnly();showAttendanceSaveState(`${studentName(studentId)} - ${status} saved`,true)}else showAttendanceSaveState('Attendance save failed',false)};
+window.markAllAttendance=status=>{const d=localISODate(el('attendanceDate').value),active=db.students.filter(s=>s.status!=='Inactive');const ids=new Set(active.map(s=>String(s.id).trim()));db.attendance=normalizeArraySource(db.attendance).filter(x=>!(ids.has(String(x.studentId||x.student||x.sid||'').trim())&&localISODate(x.date||x.attendanceDate||x.createdAt)===d));const t=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});active.forEach(s=>db.attendance.push({id:uid(),studentId:String(s.id).trim(),date:d,status:v291NormalizeStatus(status,'attendance'),time:t,updatedAt:new Date().toISOString(),source:'attendance-module-v2.9.3'}));if(persistAttendanceVerified()){logAction('attendance_bulk',`All students marked ${status} on ${d}`);saveDB();renderAttendance()}else showAttendanceSaveState('Bulk attendance save failed',false)};
 window.clearAttendanceFilters=()=>{el('attendanceSearch').value='';el('attendanceFilter').value='';drawAttendanceDay()};
 function renderAttendanceStatsOnly(){/* renderAttendance refresh is intentionally avoided while tapping multiple rows */}
 function drawAttendanceSummary(){const m=el('attendanceMonth').value,list=db.students.filter(s=>s.status!=='Inactive').map(s=>{const a=db.attendance.filter(x=>x.studentId===s.id&&x.date.startsWith(m));return {s,p:a.filter(x=>x.status==='Present').length,a:a.filter(x=>x.status==='Absent').length,l:a.filter(x=>x.status==='Late').length,lv:a.filter(x=>x.status==='Leave').length}});el('attendanceSummary').innerHTML=`<div class="table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Present</th><th>Absent</th><th>Late</th><th>Leave</th><th>Marked Days</th></tr></thead><tbody>${list.map(x=>`<tr><td>${esc(x.s.id)}</td><td>${esc(x.s.name)}</td><td>${x.p}</td><td>${x.a}</td><td>${x.l}</td><td>${x.lv}</td><td>${x.p+x.a+x.l+x.lv}</td></tr>`).join('')}</tbody></table></div>`}
@@ -679,7 +701,7 @@ window.addEventListener('beforeunload',()=>{for(const id of v281Watchers.keys())
 /* =========================================================
    V2.9.1 LIVE REPORTS INTEGRATION
    ========================================================= */
-const V29_VERSION='2.9.2';
+const V29_VERSION='2.9.3';
 function v291IsoDate(value){
  const raw=String(value||'').trim();
  if(!raw)return '';
@@ -708,7 +730,7 @@ function renderReports(){
  v291NormalizeData();
  const from=window._v29From||v29StartOfMonth(),to=window._v29To||v29EndOfMonth(),type=window._v29Type||'attendance';
  el('pageContent').innerHTML=`
- <section class="reports-hero"><div><p>V2.9.2 DATA AUDIT & SYNC</p><h1>Reports & Exports</h1><span>Attendance, fees, entry/exit and student-wise records are connected live.</span></div><div class="reports-version">v${V29_VERSION}</div></section>
+ <section class="reports-hero"><div><p>V2.9.3 ATTENDANCE SAVE ENGINE</p><h1>Reports & Exports</h1><span>Attendance, fees, entry/exit and student-wise records are connected live.</span></div><div class="reports-version">v${V29_VERSION}</div></section>
  <div class="report-sync-bar"><span><b>Live Sync:</b> Unified local database</span><span id="reportLastSync">Updated now</span></div>
  <div id="reportAudit" class="report-audit"></div>
  <div class="report-kpis" id="reportKpis"></div>

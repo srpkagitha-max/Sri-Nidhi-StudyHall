@@ -220,3 +220,4 @@ th{background:#f3f9f8;color:#35595a}
 .report-audit{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:14px 16px;margin:12px 0;border:1px solid var(--border,#dbe3ee);border-radius:14px;background:var(--card,#fff)}
 .report-audit>div{display:flex;flex-direction:column;gap:3px}.report-audit span{font-size:13px}.report-audit small{font-size:11px;opacity:.7}
 @media(max-width:720px){.report-audit{align-items:stretch;flex-direction:column}.report-audit button{width:100%}}
+.attendance-save-state{min-height:22px;margin:8px 0;font-weight:800;font-size:14px}.attendance-save-state.ok{color:#087f5b}.attendance-save-state.error{color:#c92a2a}
