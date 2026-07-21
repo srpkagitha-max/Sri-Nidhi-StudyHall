@@ -1394,7 +1394,7 @@ const v353Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent
    - Today attendance PDF
    - Old/New student first-payment flow
    ========================================================= */
-const V354_VERSION='3.5.4';
+const V354_VERSION='3.5.4.1';
 
 function v354Admitted(){return db.students.filter(s=>s.status!=='Inactive'&&admissionComplete(s)).sort((a,b)=>String(a.admissionNo||a.id).localeCompare(String(b.admissionNo||b.id),undefined,{numeric:true}))}
 function v354Gender(s){return String(s.gender||'').toLowerCase()}
@@ -1472,11 +1472,11 @@ renderDashboard=function(){
 // First-fee choice for provisional students: New student online entry or old student historical payment.
 function v354OldStudentFeeForm(s){const monthly=hallFee(s);return `<div class="card"><div class="v354-directory-head"><div><small>EXISTING / OLD STUDENT</small><h2>Previous Fee Entry</h2><p>Already paid fee details enter చేసి admission complete చేయండి.</p></div></div><form id="v354OldStudentFeeForm" class="form-grid"><div class="field"><label>Admission Number</label><input name="admissionNo" value="${esc(s.admissionNo||'')}" required></div><div class="field"><label>Paid Date</label><input type="date" name="date" value="${today()}" required></div><div class="field"><label>Fee Month</label><input type="month" name="month" value="${monthNow()}" required></div><div class="field"><label>How Much To Pay</label><input id="v354OldAmount" type="number" name="amount" value="${monthly}" required oninput="v354OldCalc()"></div><div class="field"><label>Amount Paid</label><input id="v354OldPaid" type="number" name="paid" value="${monthly}" required oninput="v354OldCalc()"></div><div class="field"><label>Remaining</label><input id="v354OldBalance" type="number" value="0" readonly></div><div class="field"><label>Mode</label><select name="mode"><option>Cash</option><option>UPI</option><option>Bank</option></select></div><div class="field"><label>Reference / Note</label><input name="reference"></div><div class="span-3"><button class="primary">Submit & Complete Admission</button></div></form></div>`}
 window.v354OldCalc=function(){const a=Number(el('v354OldAmount')?.value||0),p=Number(el('v354OldPaid')?.value||0);if(el('v354OldBalance'))el('v354OldBalance').value=Math.max(0,a-p)};
-window.v354ShowFirstFee=function(type){const s=currentStudent();if(!s)return;if(type==='old'){el('v354FirstFeeArea').innerHTML=v354OldStudentFeeForm(s);el('v354OldStudentFeeForm').onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target));o.amount=Number(o.amount);o.paid=Number(o.paid);if(o.paid<=0||o.paid>o.amount)return alert('Amount సరైనదిగా నమోదు చేయండి.');s.admissionNo=o.admissionNo.trim();s.admissionComplete=true;s.applicationStatus='Admission Completed';s.admissionCompletedAt=new Date().toISOString();s.nextDueDate=v33DatePlusMonth(o.date);const f={id:uid(),studentId:s.id,month:o.month,amount:o.amount,paid:o.paid,date:o.date,mode:o.mode,reference:o.reference||'',receipt:nextReceipt(),submittedBy:'old-student-entry',createdAt:new Date().toISOString(),admissionPayment:true};db.fees.push(f);saveDB();v33FeeReceiptPdf(s,f);renderStudentPage('overview');alert('Old student admission and fee entry completed.')}}else{el('v354FirstFeeArea').innerHTML=v33RenderStudentFees(s);v33BindStudentFeeForm(s)}};
+window.v354ShowFirstFee=function(type){const s=activeStudent();if(!s)return;if(type==='old'){el('v354FirstFeeArea').innerHTML=v354OldStudentFeeForm(s);el('v354OldStudentFeeForm').onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target));o.amount=Number(o.amount);o.paid=Number(o.paid);if(o.paid<=0||o.paid>o.amount)return alert('Amount సరైనదిగా నమోదు చేయండి.');s.admissionNo=o.admissionNo.trim();s.admissionComplete=true;s.applicationStatus='Admission Completed';s.admissionCompletedAt=new Date().toISOString();s.nextDueDate=v33DatePlusMonth(o.date);const f={id:uid(),studentId:s.id,month:o.month,amount:o.amount,paid:o.paid,date:o.date,mode:o.mode,reference:o.reference||'',receipt:nextReceipt(),submittedBy:'old-student-entry',createdAt:new Date().toISOString(),admissionPayment:true};db.fees.push(f);saveDB();v33FeeReceiptPdf(s,f);renderStudentPage('overview');alert('Old student admission and fee entry completed.')}}else{el('v354FirstFeeArea').innerHTML=v33RenderStudentFees(s);v33BindStudentFeeForm(s)}};
 
 const v354PrevRenderStudentPage=renderStudentPage;
 renderStudentPage=function(page='overview'){
- const s=currentStudent();
+ const s=activeStudent();
  if(s&&!s.admissionComplete&&page==='fees'){
   el('studentWelcome').innerHTML=`<div><p>Fee Payment Pending</p><h1>${esc(s.name||'Student')}</h1><span>${esc(s.id)} • Provisional Admission</span></div><div class="student-avatar">${esc((s.name||'S').charAt(0).toUpperCase())}</div>`;
   el('studentPageContent').innerHTML=`<section class="card"><div class="v354-directory-head"><div><small>FIRST PAYMENT</small><h2>Select Student Type</h2></div></div><div class="v354-type-choice"><button onclick="v354ShowFirstFee('new')"><b>New Student</b><span>Normal first online payment</span></button><button onclick="v354ShowFirstFee('old')"><b>Old Student</b><span>Enter already-paid fee details</span></button></div><div id="v354FirstFeeArea"></div></section>`;return;
@@ -1484,5 +1484,5 @@ renderStudentPage=function(page='overview'){
  return v354PrevRenderStudentPage(page)
 };
 
-const v354Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.5.3'));if(v354Badge)v354Badge.textContent='v3.5.4 • Clean Admin Workflow';
+const v354Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.5.3'));if(v354Badge)v354Badge.textContent='v3.5.4.1 • Student Portal Fix';
 db.meta.schemaVersion=8;saveDB();
