@@ -1216,10 +1216,12 @@ renderAdmissions=function(){
 // admission and password functions remain the source of truth.
 const v35PreviousStudentRender=renderStudentPage;
 renderStudentPage=function(page='overview'){
- const s=currentStudent();if(!s)return showLogin();
+ const s=activeStudent();if(!s){sessionStorage.removeItem(STUDENT_SESSION_KEY);location.reload();return}
  if(page==='overview'){
   document.querySelectorAll('#studentNav button').forEach(b=>b.classList.toggle('active',b.dataset.studentPage==='overview'));
-  const a=studentAttendanceSummary(s.id), f=studentFeeSummary(s), mov=db.movements.filter(x=>x.studentId===s.id), active=mov.find(x=>x.status==='Outside');
+  const att=db.attendance.filter(x=>x.studentId===s.id), present=att.filter(x=>x.status==='Present').length, marked=att.length, a={p:present,pct:marked?Math.round((present/marked)*100):0};
+  const ledger=v33StudentLedger(s), f={due:ledger.balance};
+  const mov=db.movements.filter(x=>x.studentId===s.id), active=mov.find(x=>x.status==='Outside');
   el('studentWelcome').innerHTML=`<div class="v35-student-identity"><div class="student-avatar">${s.photo?`<img src="${esc(s.photo)}" alt="${esc(s.name)}">`:esc((s.name||'S').charAt(0).toUpperCase())}</div><div><small>WELCOME BACK</small><h1>${esc(s.name)}</h1><p>${esc(s.id)}${s.admissionNo?` • ${esc(s.admissionNo)}`:''}</p></div></div><button class="v35-notice-btn" onclick="renderStudentPage('notices')">Notices</button>`;
   el('studentPageContent').innerHTML=`
    <section class="v35-student-stats">
