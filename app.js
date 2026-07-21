@@ -1148,3 +1148,127 @@ renderDashboard=function(){v33OldRenderDashboard();const content=el('pageContent
 // Version migration defaults.
 for(const s of db.students){if(!s.applicationDate)s.applicationDate=s.joinDate||today();if(!s.applicationStatus)s.applicationStatus=s.admissionComplete?'Admission Completed':'Awaiting Fee';if(!s.password)s.password='1234'}
 db.meta.schemaVersion=6;saveDB();
+
+/* =========================================================
+   V3.5 FINAL SCOPE LOCK — simplified admin, polished student
+   dashboard and professional admission / fee PDFs.
+   No additional modules beyond the approved scope.
+   ========================================================= */
+const V35_VERSION='3.5 FINAL RC';
+
+// Simplified admin dashboard: six approved metrics, today's work and six modules.
+renderDashboard=function(){
+ const t=today(), admitted=db.students.filter(s=>s.status!=='Inactive'&&admissionComplete(s));
+ const todayAdmissions=db.students.filter(s=>(s.applicationDate||s.joinDate)===t).length;
+ const todayFees=db.fees.filter(f=>localISODate(f.date)===t), collected=todayFees.reduce((n,f)=>n+Number(f.paid||0),0);
+ const dueToday=db.students.filter(s=>s.status!=='Inactive'&&s.nextDueDate===t);
+ const outside=db.movements.filter(m=>v291NormalizeStatus(m.status,'movement')==='Outside');
+ const todayAtt=db.attendance.filter(a=>localISODate(a.date)===t&&v291NormalizeStatus(a.status,'attendance')==='Present');
+ const awaiting=db.students.filter(s=>s.status!=='Inactive'&&!admissionComplete(s));
+ const overdue=outside.filter(m=>m.expectedReturn&&new Date(m.expectedReturn).getTime()<Date.now());
+ const recent=[
+  ...db.fees.slice(-3).map(f=>({time:f.date,text:`Fee paid: ${db.students.find(s=>s.id===f.studentId)?.name||f.studentId} — ${money(f.paid)}`,page:'fees'})),
+  ...db.movements.slice(-3).map(m=>({time:m.outTime,text:`${db.students.find(s=>s.id===m.studentId)?.name||m.studentId} — ${m.status||'Outside'}`,page:'movement'})),
+  ...db.students.slice(-3).map(s=>({time:s.createdAt||s.joinDate,text:`Admission: ${s.name}`,page:'admissions'}))
+ ].sort((a,b)=>String(b.time||'').localeCompare(String(a.time||''))).slice(0,5);
+ el('pageContent').innerHTML=`
+ <section class="v35-welcome"><div><small>ADMIN DASHBOARD</small><h1>${esc(db.settings.hallName)}</h1><p>${esc(db.settings.academicYear||'')} • Today at a glance</p></div><button class="v35-settings" onclick="render('settings')">⚙ Settings</button></section>
+ <section class="v35-metrics">
+  ${v35Metric('Total Students',admitted.length,'students')}
+  ${v35Metric('Today Admissions',todayAdmissions,'admissions')}
+  ${v35Metric('Today Collection',money(collected),'fees')}
+  ${v35Metric('Today Due',dueToday.length,'fees')}
+  ${v35Metric('Currently Outside',outside.length,'movement')}
+  ${v35Metric('Today Attendance',todayAtt.length,'attendance')}
+ </section>
+ <section class="v35-work card"><div class="v35-section-title"><div><small>TODAY'S WORK</small><h2>Needs Attention</h2></div><span>${awaiting.length+dueToday.length+overdue.length}</span></div>
+  <div class="v35-work-grid">
+   ${v35Work('Admissions waiting',awaiting.length,'admissions',awaiting.length?'Complete first fee':'All clear')}
+   ${v35Work('Fees due today',dueToday.length,'fees',dueToday.length?'Follow up today':'No dues today')}
+   ${v35Work('Students outside',outside.length,'movement',overdue.length?`${overdue.length} overdue`:'Track current status')}
+   ${v35Work('Attendance received',todayAtt.length,'attendance','Student self-attendance')}
+  </div>
+ </section>
+ <section class="v35-modules">
+  ${v35Module('Students','Admitted student profiles and complete history','students')}
+  ${v35Module('Admissions','New, awaiting fee and completed applications','admissions')}
+  ${v35Module('Attendance','Today present, absent and self submissions','attendance')}
+  ${v35Module('Entry / Exit','Outside students and location updates','movement')}
+  ${v35Module('Fees & Reports','Collections, pending fees and PDF reports','fees')}
+  ${v35Module('Notices','Publish information to students','notices')}
+ </section>
+ <section class="card v35-recent"><div class="v35-section-title"><div><small>RECENT ACTIVITY</small><h2>Latest Updates</h2></div></div>${recent.length?recent.map(r=>`<button onclick="render('${r.page}')"><span>${esc(r.text)}</span><small>${esc(fmtDateTime(r.time))}</small></button>`).join(''):'<div class="empty">No recent activity.</div>'}</section>`;
+};
+function v35Metric(label,value,page){return `<button class="v35-metric" onclick="render('${page}')"><span>${label}</span><b>${value}</b><small>Open ›</small></button>`}
+function v35Work(label,value,page,note){return `<button onclick="render('${page}')"><b>${value}</b><div><strong>${label}</strong><span>${note}</span></div><em>›</em></button>`}
+function v35Module(title,desc,page){return `<button class="v35-module" onclick="render('${page}')"><div><b>${title}</b><span>${desc}</span></div><em>›</em></button>`}
+
+// Admission board with only the approved three stages.
+renderAdmissions=function(){
+ const pending=db.students.filter(s=>s.status!=='Inactive'&&!admissionComplete(s));
+ const completedToday=db.students.filter(s=>s.status!=='Inactive'&&admissionComplete(s)&&(s.admissionCompletedAt||'').startsWith(today()));
+ const allCompleted=db.students.filter(s=>s.status!=='Inactive'&&admissionComplete(s));
+ const cards=list=>list.length?`<div class="v35-admission-list">${list.map(s=>{const l=v33StudentLedger(s);return `<button onclick="viewStudent('${s.id}')"><div><b>${esc(s.name)}</b><span>${esc(s.id)} • ${esc(s.phone||'-')}</span></div><div><strong>${s.admissionComplete?esc(s.admissionNo||'Completed'):'Awaiting Fee'}</strong><small>${money(l.balance)} pending</small></div><em>›</em></button>`}).join('')}</div>`:'<div class="empty">No records in this section.</div>';
+ el('pageContent').innerHTML=`<section class="v35-page-head"><div><small>ADMISSIONS</small><h1>Admission Management</h1><p>Application → first fee → completed admission</p></div><button class="primary" onclick="openPublicAdmission()">+ New Admission</button></section><div class="v35-tabs"><details open><summary>Awaiting Fee <b>${pending.length}</b></summary>${cards(pending)}</details><details><summary>Completed Today <b>${completedToday.length}</b></summary>${cards(completedToday)}</details><details><summary>All Completed <b>${allCompleted.length}</b></summary>${cards(allCompleted)}</details></div>`;
+};
+
+// Polished student portal. Existing attendance, fees, movement, notices,
+// admission and password functions remain the source of truth.
+const v35PreviousStudentRender=renderStudentPage;
+renderStudentPage=function(page='overview'){
+ const s=currentStudent();if(!s)return showLogin();
+ if(page==='overview'){
+  document.querySelectorAll('#studentNav button').forEach(b=>b.classList.toggle('active',b.dataset.studentPage==='overview'));
+  const a=studentAttendanceSummary(s.id), f=studentFeeSummary(s), mov=db.movements.filter(x=>x.studentId===s.id), active=mov.find(x=>x.status==='Outside');
+  el('studentWelcome').innerHTML=`<div class="v35-student-identity"><div class="student-avatar">${s.photo?`<img src="${esc(s.photo)}" alt="${esc(s.name)}">`:esc((s.name||'S').charAt(0).toUpperCase())}</div><div><small>WELCOME BACK</small><h1>${esc(s.name)}</h1><p>${esc(s.id)}${s.admissionNo?` • ${esc(s.admissionNo)}`:''}</p></div></div><button class="v35-notice-btn" onclick="renderStudentPage('notices')">Notices</button>`;
+  el('studentPageContent').innerHTML=`
+   <section class="v35-student-stats">
+    ${v35StudentStat('Attendance',`${a.pct}%`,`${a.p} present`,'attendance')}
+    ${v35StudentStat('Fee Balance',money(f.due),`Due: ${esc(s.nextDueDate||'-')}`,'fees')}
+    ${v35StudentStat('Next Due',esc(s.nextDueDate||'-'),'Monthly fee','fees')}
+    ${v35StudentStat('Current Status',active?'Outside':'Inside',active?esc(active.destination||'Outside'):'At study hall','movement')}
+   </section>
+   <section class="card v35-today"><div><small>TODAY</small><h2>Quick Actions</h2></div><div class="v35-action-grid">
+    ${v35StudentAction('Today Attendance','Mark daily attendance','attendance')}
+    ${v35StudentAction('Pay Fees','Payment and receipts','fees')}
+    ${v35StudentAction('Entry / Exit','Submit outside information','movement')}
+    ${v35StudentAction('My Admission','Admission details and PDF','admission')}
+    ${v35StudentAction('My Profile','Personal and parent details','profile')}
+    ${v35StudentAction('Change Password','Update login password','password')}
+   </div></section>
+   <section class="card v35-student-summary"><h2>My Details</h2><dl><dt>Course / Batch</dt><dd>${esc(s.course||'-')} / ${esc(s.batch||'-')}</dd><dt>Phone</dt><dd>${esc(s.phone||'-')}</dd><dt>Admission Date</dt><dd>${esc(s.joinDate||'-')}</dd><dt>Monthly Fee</dt><dd>${money(hallFee(s))}</dd></dl></section>`;
+  return;
+ }
+ if(page==='profile'){
+  document.querySelectorAll('#studentNav button').forEach(b=>b.classList.toggle('active',b.dataset.studentPage==='profile'));
+  el('studentWelcome').innerHTML=`<div><small>MY ACCOUNT</small><h1>${esc(s.name)}</h1><p>${esc(s.id)} • ${esc(s.admissionNo||'Admission pending')}</p></div><div class="student-avatar">${esc((s.name||'S').charAt(0).toUpperCase())}</div>`;
+  el('studentPageContent').innerHTML=`<section class="card v35-profile"><h2>My Profile</h2><dl><dt>Student ID</dt><dd>${esc(s.id)}</dd><dt>Admission Number</dt><dd>${esc(s.admissionNo||'-')}</dd><dt>Name</dt><dd>${esc(s.name)}</dd><dt>Phone</dt><dd>${esc(s.phone||'-')}</dd><dt>Parent Name</dt><dd>${esc(s.parentName||s.fatherName||'-')}</dd><dt>Parent Phone</dt><dd>${esc(s.parentPhone||s.fatherPhone||'-')}</dd><dt>Course</dt><dd>${esc(s.course||'-')}</dd><dt>Batch</dt><dd>${esc(s.batch||'-')}</dd><dt>Address</dt><dd>${esc(s.address||'-')}</dd></dl><div class="actions"><button class="secondary" onclick="renderStudentPage('password')">Change Password</button>${s.admissionNo?`<button class="primary" onclick="v35AdmissionPdf(db.students.find(x=>x.id==='${s.id}'))">Admission PDF</button>`:''}</div></section>`;
+  return;
+ }
+ return v35PreviousStudentRender(page);
+};
+function v35StudentStat(label,value,note,page){return `<button onclick="renderStudentPage('${page}')"><span>${label}</span><b>${value}</b><small>${note}</small></button>`}
+function v35StudentAction(title,desc,page){return `<button onclick="renderStudentPage('${page}')"><b>${title}</b><span>${desc}</span><em>›</em></button>`}
+
+// Professional branded PDFs.
+function v35PdfHeader(doc,title,subtitle){
+ doc.setFillColor(15,127,122);doc.roundedRect(12,10,186,34,4,4,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(db.settings.hallName||'Sri Nidhi Study Hall',20,24);doc.setFontSize(10);doc.setFont('helvetica','normal');doc.text(title,20,33);doc.text(subtitle||'',190,33,{align:'right'});doc.setTextColor(31,49,48);
+}
+function v35PdfRows(doc,rows,startY){let y=startY;for(const [label,value] of rows){doc.setFillColor(y%2?247:241,250,250);doc.roundedRect(16,y-5,178,9,2,2,'F');doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(73,101,99);doc.text(String(label),20,y);doc.setFont('helvetica','normal');doc.setTextColor(31,49,48);doc.text(String(value??'-'),78,y);y+=10}return y}
+window.v35AdmissionPdf=function(s){
+ if(!s||!v33PdfAvailable())return alert('PDF library load కాలేదు.');const {jsPDF}=window.jspdf,doc=new jsPDF();
+ v35PdfHeader(doc,'ADMISSION CONFIRMATION',s.admissionNo||s.id);doc.setFontSize(12);doc.setFont('helvetica','bold');doc.text('Student & Admission Details',16,56);
+ let y=v35PdfRows(doc,[['Admission Number',s.admissionNo||'Pending'],['Student ID',s.id],['Student Name',s.name],['Registered Phone',s.phone||'-'],['Parent / Guardian',s.parentName||s.fatherName||'-'],['Parent Phone',s.parentPhone||s.fatherPhone||'-'],['Course / Exam',s.course||'-'],['Batch / Timing',s.batch||'-'],['Admission Date',s.joinDate||'-'],['Monthly Fee',money(hallFee(s))],['Next Due Date',s.nextDueDate||'-']],66);
+ doc.setFillColor(235,248,247);doc.roundedRect(16,y+3,178,23,3,3,'F');doc.setFontSize(9);doc.setTextColor(15,103,98);doc.setFont('helvetica','bold');doc.text('LOGIN INFORMATION',20,y+11);doc.setFont('helvetica','normal');doc.setTextColor(31,49,48);doc.text(`Student ID: ${s.id}   |   Password can be changed after login`,20,y+19);
+ doc.setFontSize(8);doc.setTextColor(110,130,128);doc.text('System generated admission confirmation',105,286,{align:'center'});v33SavePdf(doc,`${s.admissionNo||s.id}_Admission_Confirmation.pdf`);
+};
+v33AdmissionCredentialPdf=function(s){
+ if(s.admissionComplete&&s.admissionNo)return v35AdmissionPdf(s);if(!v33PdfAvailable())return alert('PDF library load కాలేదు.');const {jsPDF}=window.jspdf,doc=new jsPDF();v35PdfHeader(doc,'PROVISIONAL ADMISSION & LOGIN','Fee payment pending');doc.setFontSize(12);doc.setFont('helvetica','bold');doc.text('Login Details',16,56);let y=v35PdfRows(doc,[['Application Date',s.applicationDate||s.joinDate||today()],['Student Name',s.name],['Student ID',s.id],['Initial Password',s.password],['Registered Phone',s.phone||'-'],['Course / Exam',s.course||'-'],['Batch / Timing',s.batch||'-'],['Admission Status','Awaiting First Fee']],66);doc.setFillColor(255,248,226);doc.roundedRect(16,y+3,178,25,3,3,'F');doc.setTextColor(123,82,18);doc.setFontSize(9);doc.setFont('helvetica','bold');doc.text('IMPORTANT',20,y+12);doc.setFont('helvetica','normal');doc.text('Use this Student ID and password to login. Final admission number is generated after the first fee payment.',20,y+20,{maxWidth:168});v33SavePdf(doc,`${s.id}_Admission_Login.pdf`);
+};
+v33FeeReceiptPdf=function(s,f){
+ if(!v33PdfAvailable())return alert('PDF library load కాలేదు.');const {jsPDF}=window.jspdf,doc=new jsPDF(),ledger=v33StudentLedger(s);v35PdfHeader(doc,'FEE PAYMENT RECEIPT',f.receipt||'Receipt');doc.setFillColor(235,248,247);doc.roundedRect(16,52,178,22,3,3,'F');doc.setTextColor(15,103,98);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('AMOUNT PAID',22,61);doc.setFontSize(20);doc.text(money(f.paid),22,70);doc.setFontSize(9);doc.text(`Next payment: ${f.nextDueDate||s.nextDueDate||'-'}`,188,66,{align:'right'});doc.setTextColor(31,49,48);doc.setFontSize(12);doc.text('Transaction Details',16,88);v35PdfRows(doc,[['Receipt Number',f.receipt||'-'],['Transaction Date',f.date||'-'],['Student Name',s.name],['Student ID',s.id],['Admission Number',s.admissionNo||'Pending'],['Phone Number',s.phone||'-'],['Fee Month',f.month||'-'],['Monthly Fee',money(f.amount)],['Amount Paid',money(f.paid)],['Remaining Balance',money(Math.max(0,Number(f.amount)-Number(f.paid)))],['Payment Mode',f.mode||'-'],['Transaction / Reference',f.reference||'-'],['Next Month Due Date',f.nextDueDate||s.nextDueDate||'-'],['Total Paid Till Date',money(ledger.totalPaid)]],98);doc.setFontSize(8);doc.setTextColor(110,130,128);doc.text('This is a system-generated receipt. Thank you.',105,286,{align:'center'});v33SavePdf(doc,`${f.receipt||'Receipt'}_${s.id}.pdf`);
+};
+
+// Re-label top version badge and student hall name.
+const badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.3 RC'));if(badge)badge.textContent='v3.5 FINAL RC • Scope Locked';
+if(el('studentHallName'))el('studentHallName').textContent=db.settings.hallName||'Sri Nidhi Study Hall';

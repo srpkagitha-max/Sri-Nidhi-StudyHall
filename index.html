@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0f7f7a" />
   <title>Sri Nidhi Study Hall</title>
-  <link rel="stylesheet" href="style.css?v=3.3admissionfees" />
+  <link rel="stylesheet" href="style.css?v=3.5final" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="favicon.png?v=2.5.0" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2.5.0" />
@@ -48,14 +48,13 @@
     <aside class="sidebar" id="sidebar">
       <div class="brand"><div class="brand-logo">SN</div><div><b id="sideHallName">Sri Nidhi</b><span>Study Hall</span></div></div>
       <nav id="navMenu">
-        <button data-page="dashboard" class="active">Home</button>
+        <button data-page="dashboard" class="active">Dashboard</button>
         <button data-page="students">Students</button>
-        <button data-page="fees">Fees</button>
+        <button data-page="admissions">Admissions</button>
         <button data-page="attendance">Attendance</button>
         <button data-page="movement">Entry / Exit</button>
+        <button data-page="fees">Fees & Reports</button>
         <button data-page="notices">Notices</button>
-        <button data-page="reports">Reports</button>
-        <button data-page="settings">Settings</button>
       </nav>
       <button id="logoutBtn" class="logout">Logout</button>
     </aside>
@@ -64,7 +63,7 @@
       <header class="topbar">
         <button id="menuBtn" class="menu-btn" aria-label="Open menu">☰</button>
         <div class="top-title"><h2 id="pageTitle">Home</h2><p id="todayText"></p></div>
-        <div class="admin-chip">Admin</div>
+        <button class="admin-chip" onclick="render('settings')">⚙</button>
       </header>
       <section id="pageContent" class="content"></section>
     </main>
@@ -78,13 +77,10 @@
     <main class="student-main">
       <section id="studentWelcome" class="student-welcome"></section>
       <nav class="student-nav" id="studentNav">
-        <button data-student-page="admission">Admission</button>
-        <button data-student-page="overview" class="active">Overview</button>
+        <button data-student-page="overview" class="active">Home</button>
         <button data-student-page="attendance">Attendance</button>
         <button data-student-page="fees">Fees</button>
-        <button data-student-page="movement">Entry / Exit</button>
-        <button data-student-page="notices">Notices</button>
-        <button data-student-page="password">Password</button>
+        <button data-student-page="profile">Profile</button>
       </nav>
       <section id="studentPageContent" class="student-content"></section>
     </main>
@@ -96,9 +92,9 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs"; window.pdfjsLib=pdfjsLib;</script>
-<script src="app.js?v=3.3admissionfees"></script>
-<script src="cloud-sync.js?v=3.3admissionfees"></script>
-  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=3.3admissionfees", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
-<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v3.3 RC • Admission, Fees & PDFs</div>
+<script src="app.js?v=3.5final"></script>
+<script src="cloud-sync.js?v=3.5final"></script>
+  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=3.5final", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
+<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v3.5 FINAL RC • Scope Locked</div>
 </body>
 </html>
