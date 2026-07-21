@@ -801,3 +801,88 @@ window.v29GenerateReport=()=>{const {f,title,headers,rows}=v29Data();window._v29
 function v29RenderKpis(f){const byStudent=x=>!f.studentId||x.studentId===f.studentId;const att=db.attendance.filter(a=>byStudent(a)&&v29InRange(a.date,f.from,f.to)),fees=db.fees.filter(x=>byStudent(x)&&v29InRange(x.date,f.from,f.to)),mov=db.movements.filter(x=>byStudent(x)&&v29InRange(x.outTime,f.from,f.to));const cards=[['Attendance Marked',att.length],['Present',att.filter(a=>v291NormalizeStatus(a.status,'attendance')==='Present').length],['Fees Collected',money(fees.reduce((n,x)=>n+Number(x.paid||0),0))],['Outside Trips',mov.length],['Returned',mov.filter(x=>v291NormalizeStatus(x.status,'movement')==='Returned').length]];el('reportKpis').innerHTML=cards.map(([l,v])=>`<div class="report-kpi"><span>${l}</span><b>${v}</b></div>`).join('')}
 window.v29ExportCSV=()=>{const {title,headers,rows}=v29Data();if(!rows.length)return alert('No report records to export.');v28DownloadCSV(`${title.replace(/[^a-z0-9]+/gi,'-')}-${today()}.csv`,[headers,...rows])}
 window.v29ExportPDF=()=>{const {f,title,headers,rows}=v29Data();if(!rows.length)return alert('No report records to export.');if(!window.jspdf)return alert('PDF library loading. Please try again.');const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:headers.length>6?'landscape':'portrait'}),w=doc.internal.pageSize.getWidth();doc.setFontSize(16);doc.text(db.settings.hallName,14,16);doc.setFontSize(12);doc.text(title,14,24);doc.setFontSize(9);doc.text(`${f.from} to ${f.to} | Records: ${rows.length} | Live integrated data`,14,31);let y=40;rows.forEach(r=>{const text=r.map((c,i)=>`${headers[i]}: ${String(c??'')}`).join(' | '),wrapped=doc.splitTextToSize(text,w-28);if(y+wrapped.length*5>doc.internal.pageSize.getHeight()-12){doc.addPage();y=16}doc.text(wrapped,14,y);y+=wrapped.length*5+3});doc.save(`${title.replace(/[^a-z0-9]+/gi,'-')}-${f.from}-to-${f.to}.pdf`)}
+
+/* =========================================================
+   V3.0 RC Student Self Service — Attendance + Permission GPS
+   ========================================================= */
+(function(){
+  const originalSwitchLoginRole = switchLoginRole;
+  switchLoginRole = function(role){
+    const student = role === 'student';
+    el('adminLoginPanel').classList.toggle('hidden', student);
+    el('studentLoginPanel').classList.toggle('hidden', !student);
+    el('showStudentLogin').classList.toggle('active', student);
+    el('showAdminLogin').classList.toggle('active', !student);
+    (student ? el('studentLoginId') : el('loginUser')).focus();
+  };
+  setTimeout(()=>switchLoginRole('student'),0);
+})();
+
+function selfAttendanceFor(studentId,date=today()){
+  return db.attendance.find(a=>String(a.studentId)===String(studentId)&&localISODate(a.date)===localISODate(date));
+}
+window.submitStudentAttendance=function(){
+  const s=activeStudent(); if(!s)return;
+  if(selfAttendanceFor(s.id,today())) return alert('Today attendance already submitted.');
+  db.attendance.push({id:uid(),studentId:s.id,date:today(),status:'Present',time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),updatedAt:new Date().toISOString(),source:'student-self-attendance'});
+  logAction('student_self_attendance',`${s.name} submitted daily attendance`);saveDB();renderStudentPage('attendance');
+};
+
+function studentLocationPoint(pos,type='permission'){
+  const c=pos.coords;
+  return {lat:Number(c.latitude),lng:Number(c.longitude),accuracy:Math.round(c.accuracy||0),time:new Date().toISOString(),type,mapLink:`https://www.google.com/maps?q=${c.latitude},${c.longitude}`};
+}
+function getRequiredStudentLocation(){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation)return reject(new Error('Location is not supported on this phone.'));
+    navigator.geolocation.getCurrentPosition(resolve,e=>reject(new Error(e.message||'Location permission denied.')), {enableHighAccuracy:true,timeout:20000,maximumAge:0});
+  });
+}
+window.submitStudentPermission=async function(e){
+  e.preventDefault(); const s=activeStudent(); if(!s)return;
+  if(db.movements.some(x=>x.studentId===s.id&&x.status==='Outside'))return alert('You already have an active outside permission.');
+  const form=e.target, fd=Object.fromEntries(new FormData(form));
+  if(!fd.outTime||!fd.destination||!fd.expectedReturn)return alert('Please enter leaving time, destination and expected return time.');
+  const btn=el('studentPermissionBtn'), msg=el('studentPermissionStatus');btn.disabled=true;msg.textContent='Getting your current location…';
+  try{
+    const pos=await getRequiredStudentLocation(), point=studentLocationPoint(pos,'exit');
+    const rec={id:uid(),studentId:s.id,outTime:fd.outTime,expectedReturn:fd.expectedReturn,destination:fd.destination.trim(),reason:(fd.reason||'').trim(),status:'Outside',returnTime:'',createdAt:new Date().toISOString(),submittedBy:'student',gpsTracking:true,locationHistory:[point],startLocation:point,lastLocation:point,lastGpsSavedAt:Date.now()};
+    db.movements.push(rec);logAction('student_permission',`${s.name} submitted outside permission`);saveDB();msg.textContent='Permission submitted with location.';renderStudentPage('movement');
+  }catch(err){msg.textContent='Location permission is required. Please turn on GPS and allow location.';alert(msg.textContent)}finally{btn.disabled=false}
+};
+window.updateStudentCurrentLocation=async function(id){
+  const s=activeStudent(),x=db.movements.find(m=>m.id===id&&m.studentId===s?.id&&m.status==='Outside');if(!x)return;
+  try{const pos=await getRequiredStudentLocation(),p=studentLocationPoint(pos,'live');x.locationHistory=Array.isArray(x.locationHistory)?x.locationHistory:[];x.locationHistory.push(p);x.lastLocation=p;x.lastGpsSavedAt=Date.now();saveDB();renderStudentPage('movement')}catch(e){alert('Location update failed. Please allow GPS permission.')}
+};
+window.studentMarkReturned=async function(id){
+  const s=activeStudent(),x=db.movements.find(m=>m.id===id&&m.studentId===s?.id&&m.status==='Outside');if(!x)return;
+  try{const pos=await getRequiredStudentLocation(),p=studentLocationPoint(pos,'return');x.locationHistory=Array.isArray(x.locationHistory)?x.locationHistory:[];x.locationHistory.push(p);x.lastLocation=p}catch(e){}
+  x.status='Returned';x.returnTime=v281NowLocal();x.gpsTracking=false;saveDB();renderStudentPage('movement');
+};
+
+const _renderStudentPageV3 = renderStudentPage;
+renderStudentPage=function(page='overview'){
+  const s=activeStudent();if(!s)return _renderStudentPageV3(page);
+  if(page!=='attendance'&&page!=='movement')return _renderStudentPageV3(page);
+  document.querySelectorAll('#studentNav button').forEach(b=>b.classList.toggle('active',b.dataset.studentPage===page));
+  el('studentWelcome').innerHTML=`<div><p>Welcome</p><h1>${esc(s.name)}</h1><span>${esc(s.id)} • ${esc(s.course||'Student')} • ${esc(s.batch||'-')}</span></div><div class="student-avatar">${s.photo?`<img src="${esc(s.photo)}" alt="${esc(s.name)}">`:esc((s.name||'S').charAt(0).toUpperCase())}</div>`;
+  if(page==='attendance'){
+    const a=studentAttendanceStats(s),todayRec=selfAttendanceFor(s.id,today());
+    el('studentPageContent').innerHTML=`<div class="card self-attendance-card"><h3>Daily Attendance</h3><p class="muted">Every day, submit your attendance once after login.</p>${todayRec?`<div class="self-success">✓ Today's attendance submitted at <b>${esc(todayRec.time||'-')}</b></div>`:`<button class="primary full big-action" onclick="submitStudentAttendance()">Submit Today Attendance</button>`}</div><div class="student-kpis"><div class="student-kpi"><span>Present</span><b>${a.p}</b></div><div class="student-kpi"><span>Marked Days</span><b>${a.total}</b></div><div class="student-kpi"><span>Attendance</span><b>${a.pct}%</b></div></div><div class="card"><h3>My Attendance History</h3>${a.rows.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Status</th><th>Time</th><th>Source</th></tr></thead><tbody>${[...a.rows].sort((x,y)=>String(y.date).localeCompare(String(x.date))).map(x=>`<tr><td>${esc(x.date)}</td><td><span class="badge present">${esc(v291NormalizeStatus(x.status,'attendance'))}</span></td><td>${esc(x.time||'-')}</td><td>${x.source==='student-self-attendance'?'Student':'Admin'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No attendance records yet.</div>'}</div>`;
+  }else{
+    const mov=[...db.movements].filter(x=>x.studentId===s.id).sort((a,b)=>String(b.outTime).localeCompare(String(a.outTime))),active=mov.find(x=>x.status==='Outside'),now=v28DateTimeLocal();
+    el('studentPageContent').innerHTML=`${active?`<div class="card active-trip"><h3>Current Outside Permission</h3><p><b>${esc(active.destination)}</b> • Return by ${esc(fmtDateTime(active.expectedReturn))}</p><div class="permission-actions"><button class="primary" onclick="updateStudentCurrentLocation('${active.id}')">Update Current Location</button><button class="success" onclick="studentMarkReturned('${active.id}')">I Returned</button></div><small>Latest location: ${active.lastLocation?`<a target="_blank" href="${esc(active.lastLocation.mapLink)}">Open Map</a>`:'Not available'}</small></div>`:`<form class="card permission-form" onsubmit="submitStudentPermission(event)"><h3>Outside Permission</h3><p class="muted">Location permission is compulsory. Without GPS location the request cannot be submitted.</p><div class="form-grid"><div class="field"><label>Leaving Date & Time</label><input name="outTime" type="datetime-local" value="${now}" required></div><div class="field"><label>Expected Return Date & Time</label><input name="expectedReturn" type="datetime-local" required></div><div class="field span-2"><label>Where are you going?</label><input name="destination" placeholder="Destination / place" required></div><div class="field span-2"><label>Reason</label><textarea name="reason" rows="3" placeholder="Reason for going outside"></textarea></div></div><button id="studentPermissionBtn" class="primary full big-action">Get Location & Submit Permission</button><div id="studentPermissionStatus" class="muted permission-status"></div></form>`}<div class="card"><h3>My Entry / Exit History</h3>${mov.length?`<div class="student-record-list">${mov.map(x=>`<article class="student-record"><div><b>${esc(x.destination||'Outside')}</b><span>${esc(x.reason||'-')}</span></div><span class="badge ${x.status==='Returned'?'present':'outside'}">${esc(x.status||'Outside')}</span><dl><dt>Out</dt><dd>${esc(fmtDateTime(x.outTime))}</dd><dt>Expected</dt><dd>${esc(fmtDateTime(x.expectedReturn))}</dd><dt>Returned</dt><dd>${esc(fmtDateTime(x.returnTime))}</dd><dt>Location</dt><dd>${x.lastLocation?`<a target="_blank" href="${esc(x.lastLocation.mapLink)}">Open Map</a>`:'-'}</dd></dl></article>`).join('')}</div>`:'<div class="empty">No entry / exit records yet.</div>'}</div>`;
+  }
+};
+
+renderAttendance=function(){
+ const d=window._attendanceDate||today(),rows=db.attendance.filter(a=>localISODate(a.date)===d&&a.source==='student-self-attendance').sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+ el('pageContent').innerHTML=`<div class="attendance-stats"><div><small>Self Attendance Today</small><b>${rows.length}</b></div><div><small>Active Students</small><b>${db.students.filter(s=>s.status!=='Inactive').length}</b></div></div><div class="card"><div class="card-heading-row"><div><h3>Student Daily Attendance List</h3><p class="muted">Only attendance submitted by students is shown here.</p></div><input id="attendanceDate" type="date" value="${d}"></div>${rows.length?`<div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Name</th><th>Batch</th><th>Submitted Time</th><th>Status</th></tr></thead><tbody>${rows.map(a=>{const s=db.students.find(x=>x.id===a.studentId)||{};return `<tr><td>${esc(a.studentId)}</td><td>${esc(s.name||a.studentId)}</td><td>${esc(s.batch||'-')}</td><td>${esc(a.time||'-')}</td><td><span class="badge present">Present</span></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">No student has submitted attendance for this date.</div>'}</div>`;
+ el('attendanceDate').onchange=e=>{window._attendanceDate=e.target.value;renderAttendance()};
+};
+
+renderMovement=function(){
+ const list=[...db.movements].sort((a,b)=>String(b.outTime).localeCompare(String(a.outTime))),outside=list.filter(x=>x.status==='Outside');
+ el('pageContent').innerHTML=`<div class="attendance-stats"><div><small>Currently Outside</small><b>${outside.length}</b></div><div><small>Total Requests</small><b>${list.length}</b></div></div><div class="card"><h3>Students Currently Outside</h3><p class="muted">Tap a student name to see destination, time, live/latest location and call buttons.</p><div class="admin-outside-list">${outside.length?outside.map(x=>adminMovementCard(x)).join(''):'<div class="empty">No students are outside now.</div>'}</div></div><div class="card"><h3>All Entry / Exit Requests</h3><div class="admin-outside-list">${list.length?list.map(x=>adminMovementCard(x)).join(''):'<div class="empty">No permission records yet.</div>'}</div></div>`;
+};
+function adminMovementCard(x){const s=db.students.find(v=>v.id===x.studentId)||{},loc=x.lastLocation||x.startLocation,phone=digitsOnly(s.phone||''),parent=digitsOnly(s.parentPhone||s.emergencyPhone||'');return `<details class="admin-movement-card" ${x.status==='Outside'?'open':''}><summary><div><b>${esc(s.name||x.studentId)}</b><span>${esc(x.studentId)} • ${esc(x.destination||'-')}</span></div><span class="badge ${x.status==='Returned'?'present':'outside'}">${esc(x.status)}</span></summary><div class="admin-movement-details"><dl><dt>Going To</dt><dd>${esc(x.destination||'-')}</dd><dt>Leaving Time</dt><dd>${esc(fmtDateTime(x.outTime))}</dd><dt>Expected Return</dt><dd>${esc(fmtDateTime(x.expectedReturn))}</dd><dt>Actual Return</dt><dd>${esc(fmtDateTime(x.returnTime))}</dd><dt>Reason</dt><dd>${esc(x.reason||'-')}</dd><dt>Latest Location</dt><dd>${loc?`<a target="_blank" rel="noopener" href="${esc(loc.mapLink)}">Open Current / Latest Map</a>`:'Location unavailable'}</dd></dl><div class="call-actions">${phone?`<a class="primary button-link" href="tel:${phone}">Call Student</a>`:''}${parent?`<a class="secondary button-link" href="tel:${parent}">Call Parent</a>`:''}${x.status==='Outside'?`<button class="success" onclick="markReturned('${x.id}')">Mark Returned</button>`:''}</div></div></details>`}
