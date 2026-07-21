@@ -5,40 +5,40 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0f7f7a" />
   <title>Sri Nidhi Study Hall</title>
-  <link rel="stylesheet" href="style.css?v=3.0.0sl2" />
+  <link rel="stylesheet" href="style.css?v=3.1.0cloud" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="favicon.png?v=2.5.0" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2.5.0" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-  <section id="loginView" class="login-wrap">
-    <div class="login-card auth-card">
-      <div class="logo">SN</div>
-      <h1>Sri Nidhi Study Hall</h1>
-      <p>Management & Student Portal</p>
-      <div class="student-login-heading">🎓 Student Login</div>
-      <div class="login-role-tabs simple-login-switch" role="tablist" aria-label="Choose login type">
-        <button id="showStudentLogin" class="login-role active" type="button">Student Login</button>
-        <button id="showAdminLogin" class="admin-login-link" type="button">Admin Login</button>
-      </div>
-      <div id="adminLoginPanel" class="login-panel hidden">
-        <label>Username</label>
-        <input id="loginUser" value="admin" autocomplete="username" />
-        <label>Password</label>
-        <input id="loginPass" type="password" value="1234" autocomplete="current-password" />
-        <button id="loginBtn" class="primary full">Admin Login</button>
-        <small>Demo Login: admin / 1234</small>
-        <div id="loginError" class="error"></div>
-      </div>
-      <div id="studentLoginPanel" class="login-panel">
-        <label>Student ID</label>
-        <input id="studentLoginId" placeholder="Example: SN0001" autocomplete="username" autocapitalize="characters" />
-        <label>Registered Mobile Number</label>
-        <input id="studentLoginPhone" type="tel" inputmode="numeric" maxlength="15" placeholder="10-digit mobile number" autocomplete="tel" />
-        <button id="studentLoginBtn" class="primary full">Student Login</button>
-        <small>Use the Student ID and mobile number saved by the admin.</small>
-        <div id="studentLoginError" class="error"></div>
+  <section id="loginView" class="login-wrap exam-login-wrap">
+    <div class="exam-login-shell">
+      <header class="exam-login-header">
+        <div class="logo">SN</div>
+        <div><h1>Sri Nidhi Study Hall</h1><p>Management & Student Portal</p></div>
+      </header>
+      <div class="login-card exam-student-card">
+        <div class="student-login-heading">Student Login</div>
+        <p class="login-subtext">Enter your Student ID and password</p>
+        <div id="studentLoginPanel" class="login-panel">
+          <label>Student ID</label>
+          <input id="studentLoginId" placeholder="Enter Student ID" autocomplete="username" autocapitalize="characters" />
+          <label>Password</label>
+          <input id="studentLoginPassword" type="password" placeholder="Enter Password" autocomplete="current-password" />
+          <button id="studentLoginBtn" class="primary full exam-start-btn">STUDENT LOGIN →</button>
+          <div class="secure-login-note"><b>Secure Student Login</b><span>Use the Student ID and password provided by the admin.</span></div>
+          <div id="studentLoginError" class="error"></div>
+        </div>
+        <button id="showAdminLogin" class="admin-login-link bottom-admin-link" type="button">Administrator Login</button>
+        <button id="showStudentLogin" class="hidden" type="button">Student Login</button>
+        <div id="adminLoginPanel" class="login-panel hidden admin-panel-simple">
+          <label>Username</label><input id="loginUser" value="admin" autocomplete="username" />
+          <label>Password</label><input id="loginPass" type="password" autocomplete="current-password" />
+          <button id="loginBtn" class="primary full">Admin Login</button>
+          <button type="button" class="student-back-link" onclick="switchLoginRole('student')">← Back to Student Login</button>
+          <div id="loginError" class="error"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -87,6 +87,7 @@
         <button data-student-page="fees">Fees</button>
         <button data-student-page="movement">Entry / Exit</button>
         <button data-student-page="notices">Notices</button>
+        <button data-student-page="password">Password</button>
       </nav>
       <section id="studentPageContent" class="student-content"></section>
     </main>
@@ -98,8 +99,9 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs"; window.pdfjsLib=pdfjsLib;</script>
-<script src="app.js?v=3.0.0sl2"></script>
-  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=3.0.0sl2", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
-<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v3.0 RC • Student Self Service</div>
+<script src="app.js?v=3.1.0cloud"></script>
+<script src="cloud-sync.js?v=3.1.0cloud"></script>
+  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=3.1.0cloud", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
+<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v3.1 RC • Firebase Cloud Sync</div>
 </body>
 </html>

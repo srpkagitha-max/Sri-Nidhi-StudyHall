@@ -3,11 +3,11 @@ const ATTENDANCE_BACKUP_KEY='sriNidhiAttendanceV293';
 const LEGACY_DB_KEYS=['sriNidhiStudyHallV11','sriNidhiStudyHallV10','sriNidhiStudyHall','sriNidhiDB','studyHallDB'];
 const defaultDB={
  meta:{schemaVersion:2,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},
- settings:{hallName:'Sri Nidhi Study Hall',academicYear:'2026-27',phone:'',address:'',monthlyFee:1500,feeDueDay:10,adminUser:'admin',adminPass:'1234',autoBackupDays:7},
+ settings:{hallName:'Sri Nidhi Study Hall',academicYear:'2026-27',phone:'',address:'',monthlyFee:1500,feeDueDay:10,adminUser:'admin',adminPass:'1234',autoBackupDays:7,firebaseConfig:'',firebaseSiteId:'sri-nidhi-main'},
  students:[
-  {id:'SN0001',name:'Anusha',gender:'Female',dob:'',phone:'9876543210',parentName:'',parentPhone:'9123456780',emergencyPhone:'',address:'',course:'DSC',batch:'Morning',seat:'G-01',joinDate:'2026-07-01',monthlyFee:1500,idProof:'',status:'Active',photo:''},
-  {id:'SN0002',name:'Kavya',gender:'Female',dob:'',phone:'9876501234',parentName:'',parentPhone:'9012345678',emergencyPhone:'',address:'',course:'TET',batch:'Morning',seat:'G-02',joinDate:'2026-07-03',monthlyFee:1500,idProof:'',status:'Active',photo:''},
-  {id:'SN0003',name:'Ramesh',gender:'Male',dob:'',phone:'9866001122',parentName:'',parentPhone:'9000011111',emergencyPhone:'',address:'',course:'Police',batch:'Evening',seat:'B-01',joinDate:'2026-07-05',monthlyFee:1500,idProof:'',status:'Active',photo:''}
+  {id:'SN0001',name:'Anusha',gender:'Female',dob:'',phone:'9876543210',parentName:'',parentPhone:'9123456780',emergencyPhone:'',address:'',course:'DSC',batch:'Morning',seat:'G-01',joinDate:'2026-07-01',monthlyFee:1500,idProof:'',status:'Active',photo:'',password:'1234'},
+  {id:'SN0002',name:'Kavya',gender:'Female',dob:'',phone:'9876501234',parentName:'',parentPhone:'9012345678',emergencyPhone:'',address:'',course:'TET',batch:'Morning',seat:'G-02',joinDate:'2026-07-03',monthlyFee:1500,idProof:'',status:'Active',photo:'',password:'1234'},
+  {id:'SN0003',name:'Ramesh',gender:'Male',dob:'',phone:'9866001122',parentName:'',parentPhone:'9000011111',emergencyPhone:'',address:'',course:'Police',batch:'Evening',seat:'B-01',joinDate:'2026-07-05',monthlyFee:1500,idProof:'',status:'Active',photo:'',password:'1234'}
  ],
  fees:[
   {id:uid(),studentId:'SN0001',month:'2026-07',amount:1500,paid:1500,date:'2026-07-05',mode:'UPI',receipt:'RC001'},
@@ -67,7 +67,7 @@ function loadDB(){
  }catch{return clone(defaultDB)}
 }
 function saveDB(){
- try{db.meta=db.meta||{};db.meta.schemaVersion=4;db.meta.updatedAt=new Date().toISOString();localStorage.setItem(DB_KEY,JSON.stringify(db));if(typeof currentPage!=='undefined'&&currentPage==='reports'&&typeof window.v29GenerateReport==='function'&&document.getElementById('reportTable'))setTimeout(()=>window.v29GenerateReport(),0);return true}
+ try{db.meta=db.meta||{};db.meta.schemaVersion=4;db.meta.updatedAt=new Date().toISOString();localStorage.setItem(DB_KEY,JSON.stringify(db));if(window.cloudSyncPush&&!window.__cloudApplying)window.cloudSyncPush();if(typeof currentPage!=='undefined'&&currentPage==='reports'&&typeof window.v29GenerateReport==='function'&&document.getElementById('reportTable'))setTimeout(()=>window.v29GenerateReport(),0);return true}
  catch(e){alert('Data save కాలేదు. Photo size తగ్గించి మళ్లీ ప్రయత్నించండి.');return false}
 }
 function persistAttendanceVerified(){
@@ -117,13 +117,14 @@ el('loginBtn').onclick=()=>{const u=el('loginUser').value.trim(),p=el('loginPass
 el('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')el('loginBtn').click()});
 el('logoutBtn').onclick=()=>{sessionStorage.removeItem(STUDENT_SESSION_KEY);location.reload()};
 el('studentLoginBtn').onclick=studentLogin;
-el('studentLoginPhone').addEventListener('keydown',e=>{if(e.key==='Enter')studentLogin()});
+el('studentLoginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')studentLogin()});
 el('studentLogoutBtn').onclick=()=>{sessionStorage.removeItem(STUDENT_SESSION_KEY);location.reload()};
 document.querySelectorAll('#studentNav button').forEach(b=>b.onclick=()=>renderStudentPage(b.dataset.studentPage));
 function studentLogin(){
- const id=String(el('studentLoginId').value||'').trim().toUpperCase(),phone=el('studentLoginPhone').value,student=db.students.find(s=>String(s.id||'').trim().toUpperCase()===id&&s.status!=='Inactive');
+ const id=String(el('studentLoginId').value||'').trim().toUpperCase(),password=String(el('studentLoginPassword').value||''),student=db.students.find(s=>String(s.id||'').trim().toUpperCase()===id&&s.status!=='Inactive');
  el('studentLoginError').textContent='';
- if(!student||!phoneMatches(student,phone)){el('studentLoginError').textContent='Student ID or registered mobile number is incorrect.';return}
+ const saved=String(student?.password||'1234');
+ if(!student||password!==saved){el('studentLoginError').textContent='Student ID or password is incorrect.';return}
  sessionStorage.setItem(STUDENT_SESSION_KEY,JSON.stringify({studentId:student.id,loginAt:new Date().toISOString()}));openStudentPortal(student.id);
 }
 function activeStudent(){try{const x=JSON.parse(sessionStorage.getItem(STUDENT_SESSION_KEY)||'{}');return db.students.find(s=>s.id===x.studentId&&s.status!=='Inactive')||null}catch{return null}}
@@ -138,6 +139,7 @@ function renderStudentPage(page='overview'){
  if(page==='attendance')el('studentPageContent').innerHTML=`<div class="student-kpis"><div class="student-kpi"><span>Present</span><b>${a.p}</b></div><div class="student-kpi"><span>Absent</span><b>${a.ab}</b></div><div class="student-kpi"><span>Attendance</span><b>${a.pct}%</b></div></div><div class="card"><h3>My Attendance History</h3>${a.rows.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Status</th><th>Time</th></tr></thead><tbody>${[...a.rows].sort((x,y)=>String(y.date).localeCompare(String(x.date))).map(x=>`<tr><td>${esc(x.date)}</td><td><span class="badge ${v291NormalizeStatus(x.status,'attendance')==='Present'?'present':'absent'}">${esc(v291NormalizeStatus(x.status,'attendance'))}</span></td><td>${esc(x.time||'-')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No attendance records yet.</div>'}</div>`;
  else if(page==='fees')el('studentPageContent').innerHTML=`<div class="student-kpis"><div class="student-kpi"><span>Monthly Fee</span><b>${money(hallFee(s))}</b></div><div class="student-kpi"><span>Paid This Month</span><b>${money(f.monthPaid)}</b></div><div class="student-kpi"><span>Current Balance</span><b>${money(f.due)}</b></div></div><div class="card"><h3>My Fee History</h3>${f.rows.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Month</th><th>Paid</th><th>Mode</th><th>Receipt</th></tr></thead><tbody>${[...f.rows].sort((x,y)=>String(y.date).localeCompare(String(x.date))).map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.month||'-')}</td><td>${money(x.paid)}</td><td>${esc(x.mode||'-')}</td><td>${esc(x.receipt||'-')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No fee transactions yet.</div>'}</div>`;
  else if(page==='movement')el('studentPageContent').innerHTML=`<div class="card"><h3>My Entry / Exit History</h3>${mov.length?`<div class="student-record-list">${mov.map(x=>`<article class="student-record"><div><b>${esc(x.destination||'Outside')}</b><span>${esc(x.reason||'-')}</span></div><span class="badge ${x.status==='Returned'?'present':'outside'}">${esc(x.status||'Outside')}</span><dl><dt>Out</dt><dd>${esc(fmtDateTime(x.outTime))}</dd><dt>Expected</dt><dd>${esc(fmtDateTime(x.expectedReturn))}</dd><dt>Returned</dt><dd>${esc(fmtDateTime(x.returnTime))}</dd></dl></article>`).join('')}</div>`:'<div class="empty">No entry / exit records yet.</div>'}</div>`;
+ else if(page==='password')el('studentPageContent').innerHTML=`<form class="card password-card" onsubmit="changeStudentPassword(event)"><h3>Change Password</h3><p class="muted">Use a password with at least 4 characters.</p><div class="form-grid"><div class="field span-2"><label>Current Password</label><input name="currentPassword" type="password" required></div><div class="field"><label>New Password</label><input name="newPassword" type="password" minlength="4" required></div><div class="field"><label>Confirm New Password</label><input name="confirmPassword" type="password" minlength="4" required></div></div><button class="primary full">Change Password</button><div id="studentPasswordStatus" class="muted permission-status"></div></form>`;
  else if(page==='notices'){const notices=[...(db.notices||[])].sort((x,y)=>String(y.createdAt).localeCompare(String(x.createdAt)));el('studentPageContent').innerHTML=`<div class="card"><h3>Notice Board</h3>${notices.length?notices.map(n=>`<div class="notice-card ${n.priority==='Urgent'?'urgent':''}"><b>${esc(n.title)}</b><p>${esc(n.message)}</p><small class="muted">${fmtDateTime(n.createdAt)} • ${esc(n.priority||'Normal')}</small></div>`).join(''):'<div class="empty">No notices published.</div>'}</div>`}
  else el('studentPageContent').innerHTML=`<div class="student-kpis"><div class="student-kpi"><span>Attendance</span><b>${a.pct}%</b><small>${a.p} present / ${a.total} marked</small></div><div class="student-kpi"><span>Fee Balance</span><b>${money(f.due)}</b><small>${esc(f.month)}</small></div><div class="student-kpi"><span>Outside Trips</span><b>${mov.length}</b><small>${mov.filter(x=>x.status==='Outside').length} currently outside</small></div></div><div class="grid student-overview-grid"><div class="card"><h3>My Profile</h3><dl class="student-profile"><dt>Student ID</dt><dd>${esc(s.id)}</dd><dt>Name</dt><dd>${esc(s.name)}</dd><dt>Course</dt><dd>${esc(s.course||'-')}</dd><dt>Batch</dt><dd>${esc(s.batch||'-')}</dd><dt>Seat</dt><dd>${esc(s.seat||'-')}</dd><dt>Join Date</dt><dd>${esc(s.joinDate||'-')}</dd><dt>Mobile</dt><dd>${esc(s.phone||'-')}</dd></dl></div><div class="card"><h3>Latest Notices</h3>${(db.notices||[]).slice(-3).reverse().map(n=>`<div class="student-mini-notice"><b>${esc(n.title)}</b><span>${esc(n.message)}</span></div>`).join('')||'<div class="empty">No notices.</div>'}</div></div>`;
 }
@@ -148,6 +150,15 @@ el('navMenu').onclick=e=>{const b=e.target.closest('button[data-page]');if(!b)re
 el('modalClose').onclick=closeModal;el('modal').onclick=e=>{if(e.target===el('modal'))closeModal()};
 function openModal(html){el('modalBody').innerHTML=html;el('modal').classList.remove('hidden')}
 function closeModal(){el('modal').classList.add('hidden');el('modalBody').innerHTML=''}
+
+
+window.changeStudentPassword=function(event){
+ event.preventDefault();const student=activeStudent();if(!student)return;const fd=Object.fromEntries(new FormData(event.target));const status=el('studentPasswordStatus');
+ if(String(fd.currentPassword)!==String(student.password||'1234')){status.textContent='Current password is incorrect.';return}
+ if(String(fd.newPassword||'').length<4){status.textContent='New password must contain at least 4 characters.';return}
+ if(fd.newPassword!==fd.confirmPassword){status.textContent='New passwords do not match.';return}
+ student.password=String(fd.newPassword);student.passwordChangedAt=new Date().toISOString();logAction('student_password_changed',`${student.name} changed login password`);saveDB();event.target.reset();status.textContent='Password changed successfully.';
+};
 
 function render(page,pushHistory=true){currentPage=page;document.querySelectorAll('#navMenu button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));const titles={dashboard:'Home',students:'Students',admissions:'Admissions',fees:'Fees',pending:'Pending Fees',attendance:'Attendance',movement:'Entry / Exit',notices:'Notices',diary:'Daily Diary',dailyupdates:'Daily Updates',reports:'Reports',settings:'Settings'};el('pageTitle').textContent=titles[page]||page;el('sideHallName').textContent=db.settings.hallName.replace(/Study Hall/i,'').trim()||'Sri Nidhi';if(pushHistory&&page!==history.state?.page)history.pushState({page},'',location.href);({dashboard:renderDashboard,students:renderStudents,admissions:renderAdmissions,fees:renderFees,pending:renderPending,attendance:renderAttendance,movement:renderMovement,notices:renderNotices,diary:renderDiary,dailyupdates:renderDailyUpdates,reports:renderReports,settings:renderSettings}[page]||renderDashboard)()}
 window.addEventListener('popstate',e=>{if(!el('modal').classList.contains('hidden')){closeModal();history.pushState({page:currentPage},'',location.href);return}if(!el('appView').classList.contains('hidden')){const target=e.state?.page||'dashboard';render(target,false)}});
@@ -846,13 +857,14 @@ window.submitStudentPermission=async function(e){
   const btn=el('studentPermissionBtn'), msg=el('studentPermissionStatus');btn.disabled=true;msg.textContent='Getting your current location…';
   try{
     const pos=await getRequiredStudentLocation(), point=studentLocationPoint(pos,'exit');
-    const rec={id:uid(),studentId:s.id,outTime:fd.outTime,expectedReturn:fd.expectedReturn,destination:fd.destination.trim(),reason:(fd.reason||'').trim(),status:'Outside',returnTime:'',createdAt:new Date().toISOString(),submittedBy:'student',gpsTracking:true,locationHistory:[point],startLocation:point,lastLocation:point,lastGpsSavedAt:Date.now()};
+    const outMs=new Date(fd.outTime).getTime(),returnMs=new Date(fd.expectedReturn).getTime(),durationMs=Math.max(5*60*1000,returnMs-outMs),intervalMs=Math.max(60*1000,Math.floor(durationMs/5));
+    const rec={id:uid(),studentId:s.id,outTime:fd.outTime,expectedReturn:fd.expectedReturn,destination:fd.destination.trim(),reason:(fd.reason||'').trim(),status:'Outside',returnTime:'',createdAt:new Date().toISOString(),submittedBy:'student',gpsTracking:true,trackingTarget:5,trackingIntervalMs:intervalMs,updatesCaptured:1,nextLocationDueAt:Date.now()+intervalMs,locationHistory:[point],startLocation:point,lastLocation:point,lastGpsSavedAt:Date.now()};
     db.movements.push(rec);logAction('student_permission',`${s.name} submitted outside permission`);saveDB();msg.textContent='Permission submitted with location.';renderStudentPage('movement');
   }catch(err){msg.textContent='Location permission is required. Please turn on GPS and allow location.';alert(msg.textContent)}finally{btn.disabled=false}
 };
 window.updateStudentCurrentLocation=async function(id){
   const s=activeStudent(),x=db.movements.find(m=>m.id===id&&m.studentId===s?.id&&m.status==='Outside');if(!x)return;
-  try{const pos=await getRequiredStudentLocation(),p=studentLocationPoint(pos,'live');x.locationHistory=Array.isArray(x.locationHistory)?x.locationHistory:[];x.locationHistory.push(p);x.lastLocation=p;x.lastGpsSavedAt=Date.now();saveDB();renderStudentPage('movement')}catch(e){alert('Location update failed. Please allow GPS permission.')}
+  try{const pos=await getRequiredStudentLocation(),p=studentLocationPoint(pos,'live');x.locationHistory=Array.isArray(x.locationHistory)?x.locationHistory:[];x.locationHistory.push(p);x.lastLocation=p;x.lastGpsSavedAt=Date.now();x.updatesCaptured=Math.min(Number(x.trackingTarget||5),x.locationHistory.filter(v=>v.type!=='return').length);x.nextLocationDueAt=Date.now()+Number(x.trackingIntervalMs||20*60*1000);saveDB();renderStudentPage('movement')}catch(e){alert('Location update failed. Please allow GPS permission.')}
 };
 window.studentMarkReturned=async function(id){
   const s=activeStudent(),x=db.movements.find(m=>m.id===id&&m.studentId===s?.id&&m.status==='Outside');if(!x)return;
@@ -886,3 +898,26 @@ renderMovement=function(){
  el('pageContent').innerHTML=`<div class="attendance-stats"><div><small>Currently Outside</small><b>${outside.length}</b></div><div><small>Total Requests</small><b>${list.length}</b></div></div><div class="card"><h3>Students Currently Outside</h3><p class="muted">Tap a student name to see destination, time, live/latest location and call buttons.</p><div class="admin-outside-list">${outside.length?outside.map(x=>adminMovementCard(x)).join(''):'<div class="empty">No students are outside now.</div>'}</div></div><div class="card"><h3>All Entry / Exit Requests</h3><div class="admin-outside-list">${list.length?list.map(x=>adminMovementCard(x)).join(''):'<div class="empty">No permission records yet.</div>'}</div></div>`;
 };
 function adminMovementCard(x){const s=db.students.find(v=>v.id===x.studentId)||{},loc=x.lastLocation||x.startLocation,phone=digitsOnly(s.phone||''),parent=digitsOnly(s.parentPhone||s.emergencyPhone||'');return `<details class="admin-movement-card" ${x.status==='Outside'?'open':''}><summary><div><b>${esc(s.name||x.studentId)}</b><span>${esc(x.studentId)} • ${esc(x.destination||'-')}</span></div><span class="badge ${x.status==='Returned'?'present':'outside'}">${esc(x.status)}</span></summary><div class="admin-movement-details"><dl><dt>Going To</dt><dd>${esc(x.destination||'-')}</dd><dt>Leaving Time</dt><dd>${esc(fmtDateTime(x.outTime))}</dd><dt>Expected Return</dt><dd>${esc(fmtDateTime(x.expectedReturn))}</dd><dt>Actual Return</dt><dd>${esc(fmtDateTime(x.returnTime))}</dd><dt>Reason</dt><dd>${esc(x.reason||'-')}</dd><dt>Latest Location</dt><dd>${loc?`<a target="_blank" rel="noopener" href="${esc(loc.mapLink)}">Open Current / Latest Map</a>`:'Location unavailable'}</dd></dl><div class="call-actions">${phone?`<a class="primary button-link" href="tel:${phone}">Call Student</a>`:''}${parent?`<a class="secondary button-link" href="tel:${parent}">Call Parent</a>`:''}${x.status==='Outside'?`<button class="success" onclick="markReturned('${x.id}')">Mark Returned</button>`:''}</div></div></details>`}
+
+
+// V3.1 Cloud + five-point location tracking helpers
+async function captureDueStudentLocation(){
+ const student=activeStudent();if(!student||document.hidden)return;
+ const trip=db.movements.find(x=>x.studentId===student.id&&x.status==='Outside'&&x.gpsTracking);if(!trip)return;
+ const target=Number(trip.trackingTarget||5),captured=(trip.locationHistory||[]).filter(x=>x.type!=='return').length;
+ if(captured>=target)return;
+ if(Date.now()<Number(trip.nextLocationDueAt||0))return;
+ try{
+  const pos=await getRequiredStudentLocation(),point=studentLocationPoint(pos,'auto-'+(captured+1));
+  trip.locationHistory=Array.isArray(trip.locationHistory)?trip.locationHistory:[];trip.locationHistory.push(point);trip.lastLocation=point;trip.lastGpsSavedAt=Date.now();trip.updatesCaptured=captured+1;trip.nextLocationDueAt=Date.now()+Number(trip.trackingIntervalMs||20*60*1000);saveDB();
+  if(!el('studentAppView').classList.contains('hidden'))renderStudentPage('movement');
+ }catch(e){console.warn('Automatic location update pending:',e.message)}
+}
+setInterval(captureDueStudentLocation,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)captureDueStudentLocation()});window.addEventListener('focus',captureDueStudentLocation);
+
+const _adminMovementCardV31=adminMovementCard;
+adminMovementCard=function(x){
+ const s=db.students.find(v=>v.id===x.studentId)||{},points=(x.locationHistory||[]),phone=digitsOnly(s.phone||''),parent=digitsOnly(s.parentPhone||s.emergencyPhone||'');
+ const updates=points.length?`<div class="location-update-list"><h4>Location Updates (${points.length}/5)</h4>${points.map((p,i)=>`<a target="_blank" rel="noopener" href="${esc(p.mapLink)}"><b>Update ${i+1}</b><span>${esc(fmtDateTime(p.time||p.createdAt||''))}${p.accuracy?` • ±${Math.round(p.accuracy)}m`:''}</span></a>`).join('')}</div>`:'<div class="empty">No location updates.</div>';
+ return `<details class="admin-movement-card" ${x.status==='Outside'?'open':''}><summary><div><b>${esc(s.name||x.studentId)}</b><span>${esc(x.studentId)} • ${esc(x.destination||'-')}</span></div><span class="badge ${x.status==='Returned'?'present':'outside'}">${esc(x.status)}</span></summary><div class="admin-movement-details"><dl><dt>Going To</dt><dd>${esc(x.destination||'-')}</dd><dt>Leaving Time</dt><dd>${esc(fmtDateTime(x.outTime))}</dd><dt>Expected Return</dt><dd>${esc(fmtDateTime(x.expectedReturn))}</dd><dt>Actual Return</dt><dd>${esc(fmtDateTime(x.returnTime))}</dd><dt>Reason</dt><dd>${esc(x.reason||'-')}</dd></dl>${updates}<div class="call-actions">${phone?`<a class="primary button-link" href="tel:${phone}">Call Student</a>`:''}${parent?`<a class="secondary button-link" href="tel:${parent}">Call Parent</a>`:''}${x.status==='Outside'?`<button class="success" onclick="markReturned('${x.id}')">Mark Returned</button>`:''}</div></div></details>`;
+};
