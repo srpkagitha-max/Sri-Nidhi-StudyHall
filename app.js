@@ -1025,3 +1025,126 @@ drawStudents=function(){
 // Treat pre-V3.2 records as already admitted, while newly created provisional records remain false.
 for(const s of db.students){if(typeof s.admissionComplete==='undefined'){s.admissionComplete=true;s.admissionNo=s.admissionNo||`LEGACY-${s.id}`}}
 saveDB();
+
+/* =========================================================
+   V3.3 RC — Public admission, student fee self-service,
+   credential/payment PDFs and admin fee intelligence
+   ========================================================= */
+function v33RandomPassword(){return String(Math.floor(100000+Math.random()*900000))}
+function v33AdmissionStudentId(){let n=1;const used=new Set(db.students.map(s=>String(s.id)));while(used.has(`SN${String(n).padStart(4,'0')}`))n++;return `SN${String(n).padStart(4,'0')}`}
+function v33DatePlusMonth(d){return v32AddMonth(d||today())}
+function v33StudentLedger(s){
+ const rows=db.fees.filter(f=>f.studentId===s.id).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+ const totalPaid=rows.reduce((n,f)=>n+Number(f.paid||0),0), monthly=hallFee(s), month=monthNow();
+ const monthPaid=rows.filter(f=>String(f.month||'')===month).reduce((n,f)=>n+Number(f.paid||0),0);
+ return {rows,totalPaid,monthly,monthPaid,balance:Math.max(0,monthly-monthPaid),nextDue:s.nextDueDate||v33DatePlusMonth(s.joinDate||today())};
+}
+function v33PdfAvailable(){return !!(window.jspdf&&window.jspdf.jsPDF)}
+function v33SavePdf(doc,name){try{doc.save(name)}catch(e){alert('PDF save కాలేదు. Browser download permission check చేయండి.')}}
+function v33AdmissionCredentialPdf(s){
+ if(!v33PdfAvailable())return alert('PDF library load కాలేదు. Internet on చేసి page refresh చేయండి.');
+ const {jsPDF}=window.jspdf,doc=new jsPDF();let y=20;
+ doc.setFontSize(19);doc.text(db.settings.hallName||'Sri Nidhi Study Hall',105,y,{align:'center'});y+=10;
+ doc.setFontSize(13);doc.text('Provisional Admission & Student Login Details',105,y,{align:'center'});y+=14;
+ const rows=[['Application Date',s.applicationDate||s.joinDate||today()],['Student Name',s.name],['Student ID',s.id],['Initial Password',s.password],['Registered Phone',s.phone],['Course / Exam',s.course||'-'],['Batch / Timing',s.batch||'-'],['Admission Status',s.admissionComplete?'Completed':'Fee Payment Pending']];
+ doc.setFontSize(11);for(const [a,b] of rows){doc.setFont(undefined,'bold');doc.text(`${a}:`,20,y);doc.setFont(undefined,'normal');doc.text(String(b||'-'),70,y);y+=9}
+ y+=5;doc.setFont(undefined,'bold');doc.text('Important:',20,y);y+=8;doc.setFont(undefined,'normal');
+ const note='Use the Student ID and initial password to login. Change the password after login. Admission number will be generated after the first fee transaction is recorded.';
+ doc.text(doc.splitTextToSize(note,170),20,y);y+=24;
+ doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`,20,y);
+ v33SavePdf(doc,`${s.id}_Admission_Login.pdf`);
+}
+function v33FeeReceiptPdf(s,f){
+ if(!v33PdfAvailable())return alert('PDF library load కాలేదు. Internet on చేసి page refresh చేయండి.');
+ const {jsPDF}=window.jspdf,doc=new jsPDF();let y=18;
+ doc.setFontSize(19);doc.text(db.settings.hallName||'Sri Nidhi Study Hall',105,y,{align:'center'});y+=9;
+ doc.setFontSize(13);doc.text('Fee Payment Receipt',105,y,{align:'center'});y+=13;
+ const ledger=v33StudentLedger(s),rows=[['Receipt No.',f.receipt],['Transaction Date',f.date],['Student Name',s.name],['Student ID',s.id],['Admission Number',s.admissionNo||'Pending'],['Phone Number',s.phone||'-'],['Monthly Fee',money(f.amount)],['Amount Paid',money(f.paid)],['Balance',money(Math.max(0,Number(f.amount)-Number(f.paid)))],['Payment Mode',f.mode||'-'],['Transaction / Reference',f.reference||'-'],['Fee Month',f.month||'-'],['Next Month Due Date',f.nextDueDate||s.nextDueDate||'-'],['Total Paid Till Date',money(ledger.totalPaid)]];
+ doc.setFontSize(11);for(const [a,b] of rows){doc.setFont(undefined,'bold');doc.text(`${a}:`,20,y);doc.setFont(undefined,'normal');doc.text(String(b||'-'),76,y);y+=8.5}
+ y+=5;doc.setFontSize(9);doc.text('This is a system-generated receipt.',105,y,{align:'center'});
+ v33SavePdf(doc,`${f.receipt}_${s.id}.pdf`);
+}
+window.openPublicAdmission=function(){
+ openModal(`<div class="public-admission"><h2>New Student Admission</h2><p class="muted">Form submit చేసిన వెంటనే Student ID, initial password మరియు phone numberతో PDF వస్తుంది. First fee payment తర్వాత final admission number generate అవుతుంది.</p><form id="publicAdmissionForm" class="form-grid">
+ <div class="section-title">Student Information</div>
+ <div class="field span-2"><label>Full Name *</label><input name="name" required></div>
+ <div class="field"><label>Gender</label><select name="gender"><option>Female</option><option>Male</option><option>Other</option></select></div>
+ <div class="field"><label>Date of Birth</label><input type="date" name="dob"></div>
+ <div class="field"><label>Student Phone *</label><input name="phone" inputmode="numeric" maxlength="10" required></div>
+ <div class="field"><label>Parent Phone *</label><input name="parentPhone" inputmode="numeric" maxlength="10" required></div>
+ <div class="field"><label>Parent / Guardian Name *</label><input name="parentName" required></div>
+ <div class="field"><label>Course / Exam</label><input name="course" placeholder="DSC / TET / Group Exams"></div>
+ <div class="field"><label>Batch / Timing</label><input name="batch" placeholder="Morning / Evening"></div>
+ <div class="field"><label>Monthly Fee</label><input type="number" min="1" name="monthlyFee" value="${Number(db.settings.monthlyFee||0)}" required></div>
+ <div class="field span-3"><label>Address *</label><textarea name="address" required></textarea></div>
+ <div class="span-3"><button class="primary full">Submit Admission & Download Login PDF</button></div>
+ </form></div>`);
+ el('publicAdmissionForm').onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target)),phone=digitsOnly(o.phone),parent=digitsOnly(o.parentPhone);if(phone.length!==10||parent.length!==10)return alert('Phone numbers 10 digits ఉండాలి.');if(db.students.some(s=>digitsOnly(s.phone)===phone))return alert('ఈ phone numberతో student ఇప్పటికే ఉన్నారు.');const s={id:v33AdmissionStudentId(),password:v33RandomPassword(),name:o.name.trim(),gender:o.gender,dob:o.dob||'',phone,parentName:o.parentName.trim(),parentPhone:parent,address:o.address.trim(),course:o.course.trim(),batch:o.batch.trim(),monthlyFee:Number(o.monthlyFee||db.settings.monthlyFee),joinDate:today(),applicationDate:today(),applicationStatus:'Awaiting Fee',admissionComplete:false,admissionNo:'',nextDueDate:'',status:'Active',createdBy:'student-self-admission',createdAt:new Date().toISOString()};db.students.push(s);logAction('public_admission',`${s.name} submitted admission form (${s.id})`);saveDB();closeModal();v33AdmissionCredentialPdf(s);alert(`Admission form submitted.\nStudent ID: ${s.id}\nInitial Password: ${s.password}\nPDF download started.`)};
+};
+
+// Public admission button on the login card.
+(function(){const panel=el('studentLoginPanel');if(panel&&!el('publicAdmissionBtn')){const b=document.createElement('button');b.id='publicAdmissionBtn';b.type='button';b.className='secondary full public-admission-btn';b.textContent='NEW ADMISSION';b.onclick=openPublicAdmission;panel.parentNode.insertBefore(b,panel)}})();
+
+function v33RenderStudentFees(s){
+ const l=v33StudentLedger(s);return `<section class="student-fee-self">
+ <div class="student-kpis"><div class="student-kpi"><span>Monthly Fee</span><b>${money(l.monthly)}</b></div><div class="student-kpi"><span>Paid This Month</span><b>${money(l.monthPaid)}</b></div><div class="student-kpi"><span>Balance</span><b>${money(l.balance)}</b></div></div>
+ <div class="card"><h3>Pay / Record Fee</h3><p class="muted">Online gateway ఇంకా connect కాలేదు. Cash/UPI/Bank transaction completed అయిన తర్వాత details record చేయండి.</p><form id="studentFeeSelfForm" class="form-grid">
+ <div class="field"><label>Name</label><input value="${esc(s.name)}" readonly></div><div class="field"><label>Student ID</label><input value="${esc(s.id)}" readonly></div><div class="field"><label>Phone Number</label><input value="${esc(s.phone||'')}" readonly></div>
+ <div class="field"><label>How Much to Pay</label><input id="v33FeeDue" type="number" name="amount" value="${l.monthly}" readonly></div>
+ <div class="field"><label>How Much Are You Paying *</label><input id="v33FeePaid" type="number" min="1" name="paid" value="${l.balance||l.monthly}" required></div>
+ <div class="field"><label>Remaining Balance</label><input id="v33FeeBalance" value="${l.balance}" readonly></div>
+ <div class="field"><label>Payment Date *</label><input type="date" name="date" value="${today()}" required></div>
+ <div class="field"><label>Fee Month *</label><input type="month" name="month" value="${monthNow()}" required></div>
+ <div class="field"><label>Next Month Payment Date</label><input id="v33NextDue" type="date" name="nextDueDate" value="${s.nextDueDate||v33DatePlusMonth(today())}" required></div>
+ <div class="field"><label>Payment Mode *</label><select name="mode"><option>UPI</option><option>Cash</option><option>Bank</option><option>Card</option></select></div>
+ <div class="field span-2"><label>Transaction ID / Reference</label><input name="reference" placeholder="UPI / Bank reference; optional for cash"></div>
+ <div class="span-3"><button class="primary full">Complete Transaction & Download PDF Receipt</button></div></form></div>
+ <div class="card"><h3>My Transactions</h3>${l.rows.length?`<div class="student-transaction-list">${l.rows.map(f=>`<article><div><b>${esc(f.receipt||'-')}</b><span>${esc(f.date||'-')} • ${esc(f.mode||'-')}</span></div><strong>${money(f.paid)}</strong><button class="secondary mini" onclick="v33DownloadFeeReceipt('${f.id}')">PDF</button></article>`).join('')}</div>`:'<div class="empty">No fee transactions yet.</div>'}</div></section>`;
+}
+window.v33DownloadFeeReceipt=id=>{const f=db.fees.find(x=>x.id===id),s=f&&db.students.find(x=>x.id===f.studentId);if(f&&s)v33FeeReceiptPdf(s,f)};
+function v33BindStudentFeeForm(s){const form=el('studentFeeSelfForm');if(!form)return;const paid=el('v33FeePaid'),balance=el('v33FeeBalance'),amount=el('v33FeeDue');const calc=()=>balance.value=Math.max(0,Number(amount.value||0)-Number(paid.value||0));paid.oninput=calc;form.elements.date.onchange=()=>{form.elements.nextDueDate.value=v33DatePlusMonth(form.elements.date.value)};form.onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target)),amt=Number(o.amount||0),p=Number(o.paid||0);if(p<=0||p>amt)return alert('Paid amount 1 నుంచి monthly fee లోపు ఉండాలి.');const f={id:uid(),studentId:s.id,month:o.month,amount:amt,paid:p,date:o.date,mode:o.mode,reference:o.reference||'',receipt:`SNRC${String(db.fees.length+1).padStart(5,'0')}`,nextDueDate:o.nextDueDate,submittedBy:'student',createdAt:new Date().toISOString()};db.fees.push(f);s.nextDueDate=o.nextDueDate;if(!s.admissionComplete){s.admissionComplete=true;s.admissionNo=s.admissionNo||nextAdmissionNumber();s.applicationStatus='Admission Completed';s.admissionCompletedAt=new Date().toISOString();f.admissionPayment=true}logAction('student_fee_payment',`${s.name} recorded ${money(p)} (${f.receipt})`);saveDB();v33FeeReceiptPdf(s,f);renderStudentPage('fees');alert(`Transaction saved. ${s.admissionNo?`Admission Number: ${s.admissionNo}`:''}`)}}
+
+const v33PreviousRenderStudentPage=renderStudentPage;
+renderStudentPage=function(page='overview'){
+ const s=activeStudent();if(!s)return v33PreviousRenderStudentPage(page);
+ // In V3.3, provisional students may login and pay fees before final admission number.
+ document.querySelectorAll('#studentNav button').forEach(b=>b.classList.remove('hidden'));
+ if(page==='fees'){
+  document.querySelectorAll('#studentNav button').forEach(b=>b.classList.toggle('active',b.dataset.studentPage==='fees'));
+  el('studentWelcome').innerHTML=`<div><p>${s.admissionComplete?'Admission Complete':'Fee Payment Pending'}</p><h1>${esc(s.name||'Student')}</h1><span>${esc(s.id)}${s.admissionNo?` • ${esc(s.admissionNo)}`:' • Provisional Admission'}</span></div><div class="student-avatar">${s.photo?`<img src="${esc(s.photo)}" alt="${esc(s.name)}">`:esc((s.name||'S').charAt(0).toUpperCase())}</div>`;
+  el('studentPageContent').innerHTML=v33RenderStudentFees(s);v33BindStudentFeeForm(s);return;
+ }
+ if(!s.admissionComplete&&page==='admission'){
+  document.querySelectorAll('#studentNav button').forEach(b=>b.classList.toggle('active',b.dataset.studentPage==='admission'));
+  el('studentWelcome').innerHTML=`<div><p>Admission Form Submitted</p><h1>${esc(s.name)}</h1><span>${esc(s.id)} • Fee Payment Pending</span></div><div class="student-avatar">${esc((s.name||'S').charAt(0).toUpperCase())}</div>`;
+  el('studentPageContent').innerHTML=`<div class="card"><h2>Admission Application Saved</h2><p>Your Student ID is <b>${esc(s.id)}</b>. Complete the first fee transaction from the <b>Fees</b> tab to receive the final admission number.</p><div class="actions"><button class="secondary" onclick="v33AdmissionCredentialPdf(db.students.find(x=>x.id==='${s.id}'))">Download Login PDF</button><button class="primary" onclick="renderStudentPage('fees')">Go to Fees</button></div></div>`;return;
+ }
+ v33PreviousRenderStudentPage(page);
+};
+
+// Admin Students: include provisional + admitted, with fee/application details.
+function v33ApplicationBadge(s){return s.admissionComplete?'<span class="badge present">Admitted</span>':'<span class="badge pending">Awaiting Fee</span>'}
+const v33OldDrawStudents=drawStudents;
+drawStudents=function(){
+ // Bypass the V3.2 completed-only wrapper by rendering a dedicated compact list.
+ const q=(el('studentSearch')?.value||'').trim().toLowerCase(),g=el('genderFilter')?.value||'',st=el('statusFilter')?.value||'',batch=el('batchFilter')?.value||'';
+ const list=db.students.filter(s=>(!g||s.gender===g)&&(!st||(s.status||'Active')===st)&&(!batch||(s.batch||'')===batch)&&[s.id,s.admissionNo,s.name,s.phone,s.parentName,s.course,s.batch].join(' ').toLowerCase().includes(q));
+ const info=el('studentResultInfo');if(info)info.textContent=`Total applications: ${list.length} • Admitted: ${list.filter(s=>s.admissionComplete).length} • Awaiting fee: ${list.filter(s=>!s.admissionComplete).length}`;
+ el('studentsTable').innerHTML=list.length?`<div class="student-mobile-list">${list.map(s=>{const l=v33StudentLedger(s);return `<article class="student-mobile-card"><div class="student-card-head" onclick="viewStudent('${s.id}')">${avatar(s)}<div><h3>${esc(s.name)}</h3><p>${esc(s.id)}${s.admissionNo?` • ${esc(s.admissionNo)}`:''}</p></div>${v33ApplicationBadge(s)}</div><div class="student-card-details"><span><b>Phone</b>${esc(s.phone||'-')}</span><span><b>Monthly Fee</b>${money(l.monthly)}</span><span><b>Total Paid</b>${money(l.totalPaid)}</span><span><b>Current Balance</b>${money(l.balance)}</span></div><div class="student-card-actions"><button class="primary" onclick="viewStudent('${s.id}')">Details & Fees</button><button class="secondary" onclick="editStudent('${s.id}')">Edit</button></div></article>`}).join('')}</div><div class="student-desktop-table table-wrap"><table><thead><tr><th>Student</th><th>ID / Admission</th><th>Phone</th><th>Status</th><th>Paid</th><th>Balance</th><th>Action</th></tr></thead><tbody>${list.map(s=>{const l=v33StudentLedger(s);return `<tr><td>${esc(s.name)}</td><td>${esc(s.id)}<br><small>${esc(s.admissionNo||'Pending')}</small></td><td>${esc(s.phone||'-')}</td><td>${v33ApplicationBadge(s)}</td><td>${money(l.totalPaid)}</td><td>${money(l.balance)}</td><td><button class="primary mini" onclick="viewStudent('${s.id}')">Open</button></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">No student applications found.</div>';
+};
+window.viewStudent=function(id){const s=db.students.find(x=>x.id===id);if(!s)return;const l=v33StudentLedger(s),parent=s.parentPhone||s.fatherPhone||s.motherPhone||'';openModal(`<div class="profile-hero">${avatar(s)}<div><h2>${esc(s.name)}</h2><p>${esc(s.id)} ${s.admissionNo?`• ${esc(s.admissionNo)}`:'• Admission Number Pending'}</p></div>${v33ApplicationBadge(s)}</div><div class="profile-quick-actions"><a class="secondary button-link" href="${telLink(s.phone)}">Call Student</a>${parent?`<a class="secondary button-link" href="${telLink(parent)}">Call Parent</a>`:''}<button class="secondary" onclick="v33AdmissionCredentialPdf(db.students.find(x=>x.id==='${s.id}'))">Login PDF</button><button class="primary" onclick="editStudent('${s.id}')">Edit</button></div><div class="profile-grid"><section class="profile-panel"><h3>Admission Details</h3><dl><dt>Application Date</dt><dd>${esc(s.applicationDate||s.joinDate||'-')}</dd><dt>Admission Status</dt><dd>${s.admissionComplete?'Completed':'Awaiting First Fee'}</dd><dt>Admission Number</dt><dd>${esc(s.admissionNo||'-')}</dd><dt>Phone</dt><dd>${esc(s.phone||'-')}</dd><dt>Course / Batch</dt><dd>${esc(s.course||'-')} / ${esc(s.batch||'-')}</dd><dt>Address</dt><dd>${esc(s.address||'-')}</dd></dl></section><section class="profile-panel fee-panel"><h3>Fee Summary</h3><dl><dt>Monthly Fee</dt><dd>${money(l.monthly)}</dd><dt>Paid This Month</dt><dd>${money(l.monthPaid)}</dd><dt>Current Balance</dt><dd>${money(l.balance)}</dd><dt>Total Paid</dt><dd>${money(l.totalPaid)}</dd><dt>Next Due Date</dt><dd>${esc(l.nextDue||'-')}</dd></dl></section></div><div class="card"><h3>Complete Fee Transaction History</h3>${l.rows.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Receipt</th><th>Month</th><th>Fee</th><th>Paid</th><th>Balance</th><th>Mode</th><th>Reference</th><th>PDF</th></tr></thead><tbody>${l.rows.map(f=>`<tr><td>${esc(f.date||'-')}</td><td>${esc(f.receipt||'-')}</td><td>${esc(f.month||'-')}</td><td>${money(f.amount)}</td><td>${money(f.paid)}</td><td>${money(Math.max(0,Number(f.amount)-Number(f.paid)))}</td><td>${esc(f.mode||'-')}</td><td>${esc(f.reference||'-')}</td><td><button class="secondary mini" onclick="v33DownloadFeeReceipt('${f.id}')">PDF</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No fee transactions yet.</div>'}</div>`)};
+
+function v33TodayDueStudents(){const t=today();return db.students.filter(s=>s.status!=='Inactive'&&s.nextDueDate===t)}
+function v33PendingStudents(){return db.students.filter(s=>s.status!=='Inactive').map(s=>({...s,_ledger:v33StudentLedger(s)})).filter(s=>s._ledger.balance>0)}
+window.v33PendingFeesPdf=function(){
+ if(!v33PdfAvailable())return alert('PDF library load కాలేదు.');const list=v33PendingStudents(),{jsPDF}=window.jspdf,doc=new jsPDF();let y=18;doc.setFontSize(17);doc.text(`${db.settings.hallName} - Total Fees Pending`,105,y,{align:'center'});y+=10;doc.setFontSize(9);doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`,14,y);y+=9;doc.setFontSize(9);
+ const headers=['ID','Name','Phone','Monthly','Paid Month','Balance','Next Due'];doc.setFont(undefined,'bold');doc.text(headers.join('   '),14,y);doc.setFont(undefined,'normal');y+=7;
+ for(const s of list){if(y>280){doc.addPage();y=18}const l=s._ledger;doc.text(`${s.id} | ${String(s.name).slice(0,20)} | ${s.phone||'-'} | ${l.monthly} | ${l.monthPaid} | ${l.balance} | ${l.nextDue||'-'}`,14,y);y+=6}
+ if(!list.length)doc.text('No pending fees.',14,y);v33SavePdf(doc,`Fees_Pending_${today()}.pdf`);
+};
+const v33OldRenderDashboard=renderDashboard;
+renderDashboard=function(){v33OldRenderDashboard();const content=el('pageContent');if(!content)return;const active=db.students.filter(s=>s.status!=='Inactive'),todayAdmissions=active.filter(s=>(s.applicationDate||s.joinDate)===today()).length,todayFees=db.fees.filter(f=>f.date===today()).reduce((n,f)=>n+Number(f.paid||0),0),due=v33TodayDueStudents(),pending=v33PendingStudents();const box=document.createElement('section');box.className='v33-admin-summary';box.innerHTML=`<button onclick="render('students')"><small>Total Students</small><b>${active.length}</b></button><button onclick="render('students')"><small>Today Admissions</small><b>${todayAdmissions}</b></button><button onclick="render('fees')"><small>Today Fees</small><b>${money(todayFees)}</b></button><button onclick="render('fees')"><small>Due Today</small><b>${due.length}</b></button><button onclick="v33PendingFeesPdf()"><small>Total Pending</small><b>${pending.length}</b><span>Download PDF</span></button>`;content.insertBefore(box,content.firstChild)};
+
+// Version migration defaults.
+for(const s of db.students){if(!s.applicationDate)s.applicationDate=s.joinDate||today();if(!s.applicationStatus)s.applicationStatus=s.admissionComplete?'Admission Completed':'Awaiting Fee';if(!s.password)s.password='1234'}
+db.meta.schemaVersion=6;saveDB();
