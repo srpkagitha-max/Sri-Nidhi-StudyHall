@@ -252,3 +252,33 @@ th{background:#f3f9f8;color:#35595a}
 .password-card{max-width:720px}.firebase-card textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}.cloud-status{padding:7px 11px;border-radius:999px;font-weight:800;font-size:12px}.cloud-status.ok{background:#dcfce7;color:#166534}.cloud-status.bad{background:#fee2e2;color:#991b1b}
 .location-update-list{margin:14px 0;display:grid;gap:8px}.location-update-list h4{margin:0 0 4px}.location-update-list a{display:flex;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid #d8e8e6;border-radius:12px;text-decoration:none;background:#f8fbfb;color:#123}.location-update-list a span{font-size:12px;color:#667;text-align:right}
 @media(max-width:560px){.exam-login-header{min-height:185px;padding:28px 22px 42px}.exam-login-header .logo{width:72px;height:72px;flex-basis:72px}.exam-login-header h1{font-size:28px}.exam-login-header p{font-size:14px}.exam-student-card{margin:-22px 14px 0;padding:28px 20px;border-radius:24px}.exam-student-card .student-login-heading{font-size:30px}.exam-student-card input{min-height:58px}.location-update-list a{align-items:flex-start;flex-direction:column}.location-update-list a span{text-align:left}}
+
+
+/* V3.1.1 mobile compact login + compact movement list */
+.student-brand b{white-space:nowrap;display:block;max-width:calc(100vw - 150px);overflow:hidden;text-overflow:ellipsis}
+.admin-movement-card summary>div span{display:none}
+.admin-movement-card summary{min-height:58px;padding:12px 14px}
+.admin-movement-card:not([open]) .admin-movement-details{display:none}
+.latest-real-location{margin:12px 0;padding:13px;border:1px solid #bfe2de;background:#eaf8f6;border-radius:13px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.latest-real-location div{display:flex;flex-direction:column;gap:3px}.latest-real-location small{color:#627a78}.latest-real-location a{white-space:nowrap}
+@media(max-width:560px){
+  .exam-login-wrap{min-height:100svh;background:linear-gradient(180deg,#0f7f7a 0 145px,#eef8f7 145px 100%)}
+  .exam-login-shell{padding-bottom:10px}
+  .exam-login-header{min-height:145px;padding:18px 18px 30px;gap:13px}
+  .exam-login-header .logo{width:58px;height:58px;flex-basis:58px;border-radius:17px;border-width:4px;font-size:23px}
+  .exam-login-header h1{font-size:22px;white-space:nowrap;letter-spacing:0}
+  .exam-login-header p{font-size:12px;margin-top:3px}
+  .exam-student-card{margin:-18px 12px 0;padding:20px 18px 18px;border-radius:22px;min-height:auto}
+  .exam-student-card .student-login-heading{font-size:25px}
+  .login-subtext{margin:2px 0 12px!important;font-size:14px}
+  .exam-student-card label{font-size:15px;margin-top:10px;margin-bottom:5px}
+  .exam-student-card input{min-height:48px;font-size:16px;padding:11px 13px}
+  .exam-start-btn{min-height:50px;margin-top:16px;font-size:16px}
+  .secure-login-note{margin-top:12px;padding:12px 14px;border-radius:13px;font-size:13px}
+  .bottom-admin-link{margin:12px auto 0!important;font-size:15px;padding:6px}
+  .student-topbar{gap:8px}.student-brand{min-width:0;gap:8px}.student-brand .brand-logo{flex:0 0 auto}
+  .student-brand b{font-size:15px;max-width:calc(100vw - 145px)}
+  .student-brand span{font-size:10px}
+  .latest-real-location{align-items:flex-start;flex-direction:column}.latest-real-location a{width:100%}
+  .admin-movement-details{padding:12px}.admin-movement-details dl{grid-template-columns:95px 1fr;gap:7px 10px}
+}
