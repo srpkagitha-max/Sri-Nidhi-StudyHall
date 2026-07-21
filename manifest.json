@@ -1,5 +1,5 @@
 {
-  "name": "Sri Nidhi Study Hall Management System",
+  "name": "Sri Nidhi Study Hall - Admin & Student",
   "short_name": "Sri Nidhi",
   "start_url": "./?v=291",
   "scope": "./",
@@ -19,5 +19,6 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "description": "Sri Nidhi Study Hall Admin and Student Portal"
 }

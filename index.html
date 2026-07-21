@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0f7f7a" />
   <title>Sri Nidhi Study Hall</title>
-  <link rel="stylesheet" href="style.css?v=3.0.0b1" />
+  <link rel="stylesheet" href="style.css?v=3.0.0sl1" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="favicon.png?v=2.5.0" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2.5.0" />
@@ -13,17 +13,32 @@
 </head>
 <body>
   <section id="loginView" class="login-wrap">
-    <div class="login-card">
+    <div class="login-card auth-card">
       <div class="logo">SN</div>
       <h1>Sri Nidhi Study Hall</h1>
-      <p>Management & Security System</p>
-      <label>Username</label>
-      <input id="loginUser" value="admin" autocomplete="username" />
-      <label>Password</label>
-      <input id="loginPass" type="password" value="1234" autocomplete="current-password" />
-      <button id="loginBtn" class="primary full">Login</button>
-      <small>Demo Login: admin / 1234</small>
-      <div id="loginError" class="error"></div>
+      <p>Management & Student Portal</p>
+      <div class="login-role-tabs" role="tablist" aria-label="Choose login type">
+        <button id="showAdminLogin" class="login-role active" type="button">👨‍💼 Admin</button>
+        <button id="showStudentLogin" class="login-role" type="button">🎓 Student</button>
+      </div>
+      <div id="adminLoginPanel" class="login-panel">
+        <label>Username</label>
+        <input id="loginUser" value="admin" autocomplete="username" />
+        <label>Password</label>
+        <input id="loginPass" type="password" value="1234" autocomplete="current-password" />
+        <button id="loginBtn" class="primary full">Admin Login</button>
+        <small>Demo Login: admin / 1234</small>
+        <div id="loginError" class="error"></div>
+      </div>
+      <div id="studentLoginPanel" class="login-panel hidden">
+        <label>Student ID</label>
+        <input id="studentLoginId" placeholder="Example: SN0001" autocomplete="username" autocapitalize="characters" />
+        <label>Registered Mobile Number</label>
+        <input id="studentLoginPhone" type="tel" inputmode="numeric" maxlength="15" placeholder="10-digit mobile number" autocomplete="tel" />
+        <button id="studentLoginBtn" class="primary full">Student Login</button>
+        <small>Use the Student ID and mobile number saved by the admin.</small>
+        <div id="studentLoginError" class="error"></div>
+      </div>
     </div>
   </section>
 
@@ -58,14 +73,32 @@
     </main>
   </div>
 
+  <div id="studentAppView" class="student-app hidden">
+    <header class="student-topbar">
+      <div class="student-brand"><div class="brand-logo">SN</div><div><b id="studentHallName">Sri Nidhi Study Hall</b><span>Student Portal</span></div></div>
+      <button id="studentLogoutBtn" class="secondary">Logout</button>
+    </header>
+    <main class="student-main">
+      <section id="studentWelcome" class="student-welcome"></section>
+      <nav class="student-nav" id="studentNav">
+        <button data-student-page="overview" class="active">Overview</button>
+        <button data-student-page="attendance">Attendance</button>
+        <button data-student-page="fees">Fees</button>
+        <button data-student-page="movement">Entry / Exit</button>
+        <button data-student-page="notices">Notices</button>
+      </nav>
+      <section id="studentPageContent" class="student-content"></section>
+    </main>
+  </div>
+
   <div id="modal" class="modal hidden"><div class="modal-box"><button id="modalClose" class="modal-close">×</button><div id="modalBody"></div></div></div>
   <script>
 (async()=>{try{if("caches" in window){for(const k of await caches.keys()){if(!k.includes("v3.0-rc"))await caches.delete(k)}}if("serviceWorker" in navigator){const regs=await navigator.serviceWorker.getRegistrations();for(const r of regs)await r.update()}}catch(e){console.warn(e)}})();
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs"; window.pdfjsLib=pdfjsLib;</script>
-<script src="app.js?v=3.0.0b1"></script>
-  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=3.0.0b1", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
-<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v3.0 RC</div>
+<script src="app.js?v=3.0.0sl1"></script>
+  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=3.0.0sl1", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
+<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v3.0 RC • Student Login</div>
 </body>
 </html>
