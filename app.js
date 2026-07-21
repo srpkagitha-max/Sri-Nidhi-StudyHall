@@ -939,3 +939,89 @@ adminMovementCard=function(x){
  const latestBox=latest?`<div class="latest-real-location"><div><b>Latest Real GPS Location</b><small>${esc(fmtDateTime(latest.time||latest.createdAt||''))}${latest.accuracy?` • Accuracy ±${Math.round(latest.accuracy)}m`:''}</small></div><a class="primary button-link" target="_blank" rel="noopener" href="${esc(latest.mapLink)}">Open Live / Latest Map</a></div>`:`<div class="empty">Real location is not available yet.</div>`;
  return `<details class="admin-movement-card"><summary><div><b>${esc(s.name||x.studentId)}</b><span>${esc(x.studentId)} • ${esc(x.destination||'-')}</span></div><span class="badge ${x.status==='Returned'?'present':'outside'}">${esc(x.status)}</span></summary><div class="admin-movement-details"><dl><dt>Student ID</dt><dd>${esc(x.studentId)}</dd><dt>Going To</dt><dd>${esc(x.destination||'-')}</dd><dt>Leaving Time</dt><dd>${esc(fmtDateTime(x.outTime))}</dd><dt>Expected Return</dt><dd>${esc(fmtDateTime(x.expectedReturn))}</dd><dt>Actual Return</dt><dd>${esc(fmtDateTime(x.returnTime))}</dd><dt>Reason</dt><dd>${esc(x.reason||'-')}</dd></dl>${latestBox}${updates}<div class="call-actions">${phone?`<a class="primary button-link" href="tel:${phone}">Call Student</a>`:''}${parent?`<a class="secondary button-link" href="tel:${parent}">Call Parent</a>`:''}${x.status==='Outside'?`<button class="success" onclick="markReturned('${x.id}')">Mark Returned</button>`:''}</div></div></details>`;
 };
+
+/* =========================================================
+   V3.2 RC — Student self admission + first fee + receipt
+   ========================================================= */
+function admissionComplete(s){return !!s && s.admissionComplete!==false}
+function nextAdmissionNumber(){
+ let max=0;
+ for(const s of db.students){const m=String(s.admissionNo||'').match(/SNADM(\d+)/i);if(m)max=Math.max(max,Number(m[1]))}
+ return `SNADM${String(max+1).padStart(5,'0')}`;
+}
+function admissionReceiptNumber(){return `ADMR${String(db.fees.length+1).padStart(5,'0')}`}
+function v32AddMonth(date){const d=new Date(`${date}T12:00:00`);if(Number.isNaN(d.getTime()))return '';const day=d.getDate();d.setMonth(d.getMonth()+1);if(d.getDate()<day)d.setDate(0);return localISODate(d)}
+function renderAdmissionReceipt(s){
+ const fee=[...db.fees].reverse().find(f=>f.studentId===s.id&&f.admissionPayment);
+ return `<div class="admission-receipt"><h2>${esc(db.settings.hallName)}</h2><div class="receipt-no">Admission Fee Receipt • ${esc(fee?.receipt||'-')}</div><span class="admission-complete-badge">Admission Completed</span><dl><dt>Admission Number</dt><dd>${esc(s.admissionNo||'-')}</dd><dt>Student</dt><dd>${esc(s.name)}</dd><dt>Student Login ID</dt><dd>${esc(s.id)}</dd><dt>Payment Date</dt><dd>${esc(fee?.date||s.joinDate||'-')}</dd><dt>Amount Paid</dt><dd>${money(fee?.paid||0)}</dd><dt>Payment Mode</dt><dd>${esc(fee?.mode||'-')}</dd><dt>Next Month Due Date</dt><dd>${esc(s.nextDueDate||'-')}</dd></dl><button class="primary full" onclick="window.print()">Print / Save Receipt</button></div>`;
+}
+function renderStudentAdmission(s){
+ if(admissionComplete(s)&&s.admissionNo)return renderAdmissionReceipt(s);
+ return `<form class="card admission-form-card" onsubmit="submitStudentAdmission(event)"><h2>Student Admission Form</h2><div class="admission-lock-note"><b>Admission number is generated only after fee details are submitted.</b><br>Already paid manually? Select the actual payment date and enter the amount paid.</div><div class="form-grid">
+ <div class="section-title">Student Details</div>
+ <div class="field"><label>Full Name *</label><input name="name" value="${esc(s.name||'')}" required></div>
+ <div class="field"><label>Gender *</label><select name="gender"><option ${s.gender==='Female'?'selected':''}>Female</option><option ${s.gender==='Male'?'selected':''}>Male</option><option ${s.gender==='Other'?'selected':''}>Other</option></select></div>
+ <div class="field"><label>Date of Birth</label><input type="date" name="dob" value="${esc(s.dob||'')}"></div>
+ <div class="field"><label>Student Phone *</label><input name="phone" inputmode="numeric" value="${esc(s.phone||'')}" required></div>
+ <div class="field"><label>Parent / Guardian Name *</label><input name="parentName" value="${esc(s.parentName||'')}" required></div>
+ <div class="field"><label>Parent Phone *</label><input name="parentPhone" inputmode="numeric" value="${esc(s.parentPhone||'')}" required></div>
+ <div class="field span-3"><label>Address *</label><textarea name="address" required>${esc(s.address||'')}</textarea></div>
+ <div class="section-title">Study Hall Details</div>
+ <div class="field"><label>Course / Exam</label><input name="course" value="${esc(s.course||'')}"></div>
+ <div class="field"><label>Batch / Timing</label><input name="batch" value="${esc(s.batch||'')}"></div>
+ <div class="field"><label>Monthly Fee</label><input type="number" name="monthlyFee" min="1" value="${hallFee(s)}" required></div>
+ <div class="section-title">First Fee / Manual Payment Details</div>
+ <div class="field"><label>Payment Date *</label><input type="date" name="paymentDate" value="${today()}" required></div>
+ <div class="field"><label>Amount Paid *</label><input type="number" name="paid" min="1" value="${hallFee(s)}" required></div>
+ <div class="field"><label>Payment Mode *</label><select name="mode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Card</option></select></div>
+ <div class="field span-2"><label>Transaction / Reference Number</label><input name="reference" placeholder="Optional for cash"></div>
+ <div class="span-3"><button class="primary full">Submit Admission & Generate Number</button><p class="provisional-note">The same selected payment date becomes next month’s due-date basis.</p></div>
+ </div></form>`;
+}
+window.submitStudentAdmission=function(event){
+ event.preventDefault();const s=activeStudent();if(!s)return;const o=Object.fromEntries(new FormData(event.target));
+ const phone=digitsOnly(o.phone),parentPhone=digitsOnly(o.parentPhone),paid=Number(o.paid||0),fee=Number(o.monthlyFee||0);
+ if(phone.length!==10||parentPhone.length!==10)return alert('Student and parent phone numbers must contain 10 digits.');
+ if(paid<=0)return alert('Fee amount must be greater than zero to complete admission.');
+ Object.assign(s,{name:o.name.trim(),gender:o.gender,dob:o.dob,phone,parentName:o.parentName.trim(),parentPhone,address:o.address.trim(),course:o.course.trim(),batch:o.batch.trim(),monthlyFee:fee,joinDate:o.paymentDate,admissionComplete:true,admissionNo:s.admissionNo||nextAdmissionNumber(),admissionCompletedAt:new Date().toISOString(),nextDueDate:v32AddMonth(o.paymentDate),status:'Active'});
+ db.fees.push({id:uid(),studentId:s.id,month:String(o.paymentDate).slice(0,7),amount:fee,paid,date:o.paymentDate,mode:o.mode,reference:o.reference||'',receipt:admissionReceiptNumber(),admissionPayment:true,nextDueDate:s.nextDueDate});
+ logAction('student_admission_completed',`${s.name} completed admission ${s.admissionNo} and paid ${money(paid)}`);saveDB();renderStudentPage('admission');alert(`Admission completed. Admission Number: ${s.admissionNo}`);
+};
+
+const v32OriginalRenderStudentPage=renderStudentPage;
+renderStudentPage=function(page='overview'){
+ const s=activeStudent();if(!s)return v32OriginalRenderStudentPage(page);
+ const complete=admissionComplete(s);
+ document.querySelectorAll('#studentNav button').forEach(b=>{
+   const p=b.dataset.studentPage;
+   b.classList.toggle('hidden',!complete&&!['admission','password'].includes(p));
+ });
+ if(!complete&&page!=='password')page='admission';
+ if(page==='admission'){
+   document.querySelectorAll('#studentNav button').forEach(b=>b.classList.toggle('active',b.dataset.studentPage==='admission'));
+   el('studentWelcome').innerHTML=`<div><p>${complete?'Admission Complete':'Complete Your Admission'}</p><h1>${esc(s.name||'Student')}</h1><span>${esc(s.id)}${s.admissionNo?` • ${esc(s.admissionNo)}`:' • Provisional Login'}</span></div><div class="student-avatar">${s.photo?`<img src="${esc(s.photo)}" alt="${esc(s.name)}">`:esc((s.name||'S').charAt(0).toUpperCase())}</div>`;
+   el('studentPageContent').innerHTML=renderStudentAdmission(s);return;
+ }
+ v32OriginalRenderStudentPage(page);
+};
+
+const v32OriginalBindStudentForm=bindStudentForm;
+bindStudentForm=function(editId=null){
+ v32OriginalBindStudentForm(editId);const form=el('studentForm');if(!form)return;const old=form.onsubmit;
+ form.onsubmit=function(e){
+   const beforeIds=new Set(db.students.map(x=>x.id));
+   old.call(form,e);
+   if(!editId){const created=db.students.find(x=>!beforeIds.has(x.id));if(created){created.admissionComplete=false;created.admissionNo='';created.password=created.password||'1234';created.status='Active';saveDB();alert(`Provisional student login created.\nStudent ID: ${created.id}\nInitial Password: ${created.password}\nStudent must complete admission and fee details after login.`)}}
+ };
+};
+
+const v32OriginalDrawStudents=drawStudents;
+drawStudents=function(){
+ const all=db.students,completed=all.filter(admissionComplete),pending=all.filter(s=>!admissionComplete(s));db.students=completed;
+ try{v32OriginalDrawStudents();const info=el('studentResultInfo');if(info)info.textContent=`Admission completed: ${completed.length}${pending.length?` • Pending self-admission: ${pending.length}`:''}`}
+ finally{db.students=all}
+};
+
+// Treat pre-V3.2 records as already admitted, while newly created provisional records remain false.
+for(const s of db.students){if(typeof s.admissionComplete==='undefined'){s.admissionComplete=true;s.admissionNo=s.admissionNo||`LEGACY-${s.id}`}}
+saveDB();

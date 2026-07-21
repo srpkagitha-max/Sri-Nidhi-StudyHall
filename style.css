@@ -330,3 +330,33 @@ th{background:#f3f9f8;color:#35595a}
 .admin-alert-list button:first-child em{color:#a63342;background:#ffe7eb}
 .admin-alert-list button:hover{border-color:#8dcfc9;background:#f1fbfa}
 @media(max-width:600px){.admin-alerts{padding:14px;border-radius:20px}.admin-alert-head h2{font-size:19px}.admin-alert-list button,.admin-alert-empty{padding:12px}.home-menu-list{gap:10px}}
+
+/* V3.2 Student Admission & balanced login */
+.exam-login-shell{width:min(760px,100%);margin:0 auto}
+.exam-login-header{min-height:230px;padding:42px 34px 58px;gap:24px}
+.exam-login-header .logo{width:94px;height:94px;flex-basis:94px;font-size:34px}
+.exam-login-header h1{font-size:clamp(31px,6vw,46px)}
+.exam-student-card{margin:-34px 24px 28px;padding:36px 30px 30px}
+.admission-lock-note{background:#fff8e8;border:1px solid #f3d394;border-radius:14px;padding:13px;margin:0 0 14px;color:#79571e}
+.admission-form-card{max-width:900px;margin:auto}.admission-form-card h2{margin-top:0;color:#0d6864}
+.admission-summary{background:#eff9f8;border:1px solid #cce8e5;border-radius:16px;padding:16px;margin-bottom:16px}
+.admission-receipt{background:#fff;border:2px dashed #97c9c5;border-radius:18px;padding:20px;max-width:680px;margin:auto}
+.admission-receipt h2{text-align:center;color:#0d6864;margin:0 0 4px}.admission-receipt .receipt-no{text-align:center;color:#607876;margin-bottom:18px}
+.admission-receipt dl{display:grid;grid-template-columns:1fr 1.4fr;gap:9px 15px}.admission-receipt dd{margin:0;font-weight:800}
+.admission-complete-badge{display:inline-flex;padding:7px 12px;border-radius:999px;background:#e2f7eb;color:#157347;font-weight:900}
+.student-nav button[data-student-page="admission"]{border-color:#76bcb6}
+.provisional-note{font-size:12px;color:#6b7f7d;margin-top:7px}
+@media(max-width:560px){
+ .exam-login-wrap{padding-bottom:18px}.exam-login-shell{width:100%}
+ .exam-login-header{min-height:205px;padding:34px 22px 54px;gap:16px}
+ .exam-login-header .logo{width:78px;height:78px;flex-basis:78px;border-radius:22px;font-size:28px}
+ .exam-login-header h1{font-size:29px}.exam-login-header p{font-size:14px}
+ .exam-student-card{margin:-30px 16px 22px;padding:30px 22px 24px;border-radius:26px}
+ .admission-receipt dl{grid-template-columns:1fr}.admission-receipt dt{color:#718684}.admission-receipt dd{margin-bottom:7px}
+}
+@media(max-width:390px){
+ .exam-login-header{padding-left:16px;padding-right:16px;gap:12px}
+ .exam-login-header .logo{width:68px;height:68px;flex-basis:68px;font-size:24px}
+ .exam-login-header h1{font-size:24px}.exam-login-header p{font-size:12px}
+ .exam-student-card{margin-left:10px;margin-right:10px;padding:25px 18px 21px}
+}
