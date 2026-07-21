@@ -1385,3 +1385,104 @@ window.addEventListener('popstate',()=>{
 
 // Version marker
 const v353Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.5.2'));if(v353Badge)v353Badge.textContent='v3.5.3 • Clean Reports & Navigation';
+
+/* =========================================================
+   V3.5.4 CLEAN ADMIN WORKFLOW
+   - Students / Admissions / Collections labels
+   - Simplified admitted-student directory
+   - Manual collection desk
+   - Today attendance PDF
+   - Old/New student first-payment flow
+   ========================================================= */
+const V354_VERSION='3.5.4';
+
+function v354Admitted(){return db.students.filter(s=>s.status!=='Inactive'&&admissionComplete(s)).sort((a,b)=>String(a.admissionNo||a.id).localeCompare(String(b.admissionNo||b.id),undefined,{numeric:true}))}
+function v354Gender(s){return String(s.gender||'').toLowerCase()}
+function v354StudentDetailsPdf(id){
+ const s=db.students.find(x=>x.id===id);if(!s)return;
+ if(!v33PdfAvailable())return alert('PDF library load కాలేదు.');
+ const {jsPDF}=window.jspdf,doc=new jsPDF();
+ v35PdfHeader(doc,'STUDENT COMPLETE DETAILS',`${s.admissionNo||s.id} • ${s.name}`);
+ const ledger=v33StudentLedger(s);
+ let y=v35PdfRows(doc,[
+  ['Admission Number',s.admissionNo||'-'],['Student ID',s.id],['Student Name',s.name],['Gender',s.gender||'-'],['Date of Birth',s.dob||'-'],['Phone',s.phone||'-'],['Parent Name',s.parentName||s.fatherName||'-'],['Parent Phone',s.parentPhone||s.fatherPhone||'-'],['Course',s.course||'-'],['Batch',s.batch||'-'],['Admission Date',s.applicationDate||s.joinDate||'-'],['Address',s.address||'-'],['Monthly Fee',money(ledger.monthly)],['Total Paid',money(ledger.totalPaid)],['Current Balance',money(ledger.balance)],['Next Due Date',ledger.nextDue||'-']
+ ],54);
+ y+=8;doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Fee Transactions',16,y);y+=7;doc.setFontSize(8);doc.setFont('helvetica','normal');
+ if(!ledger.rows.length)doc.text('No fee transactions.',16,y);else for(const f of ledger.rows){if(y>278){doc.addPage();y=18}doc.text(`${f.date||'-'} | ${f.receipt||'-'} | ${f.month||'-'} | Paid ${money(f.paid)} | ${f.mode||'-'} | ${f.reference||'-'}`,16,y,{maxWidth:178});y+=6}
+ v33SavePdf(doc,`${s.admissionNo||s.id}_${String(s.name).replace(/\W+/g,'_')}_Details.pdf`)
+}
+window.v354StudentDetailsPdf=v354StudentDetailsPdf;
+
+renderStudents=function(){
+ const all=v354Admitted(),boys=all.filter(s=>v354Gender(s)==='male'||v354Gender(s)==='boy').length,girls=all.filter(s=>v354Gender(s)==='female'||v354Gender(s)==='girl').length;
+ el('pageContent').innerHTML=`
+ <section class="v354-student-summary"><div><small>Total Students</small><b>${all.length}</b></div><div><small>Boys</small><b>${boys}</b></div><div><small>Girls</small><b>${girls}</b></div></section>
+ <section class="card v354-student-directory"><div class="v354-directory-head"><div><small>STUDENT DIRECTORY</small><h2>Student List</h2></div></div><input id="studentSearch" class="v354-universal-search" placeholder="Search admission no, name, ID, phone, parent, batch..."><div id="studentsTable"></div></section>`;
+ el('studentSearch').oninput=drawStudents;drawStudents();
+};
+
+drawStudents=function(){
+ const q=(el('studentSearch')?.value||'').trim().toLowerCase();
+ const list=v354Admitted().filter(s=>[s.admissionNo,s.id,s.name,s.phone,s.parentName,s.parentPhone,s.fatherName,s.fatherPhone,s.course,s.batch,s.address].join(' ').toLowerCase().includes(q));
+ el('studentsTable').innerHTML=list.length?`<div class="v354-simple-student-list">${list.map(s=>`<button onclick="viewStudent('${s.id}')"><span><b>${esc(s.admissionNo||s.id)} : ${esc(s.name)}</b><small>${esc(s.batch||'No Batch')} • ${esc(s.id)}</small></span><em>›</em></button>`).join('')}</div>`:'<div class="empty">No students found.</div>';
+};
+
+const v354BaseViewStudent=window.viewStudent;
+window.viewStudent=function(id){
+ const s=db.students.find(x=>x.id===id);if(!s)return;
+ const l=v33StudentLedger(s),parent=s.parentPhone||s.fatherPhone||s.motherPhone||'';
+ openModal(`<div class="profile-hero">${avatar(s)}<div><h2>${esc(s.name)}</h2><p>${esc(s.admissionNo||'-')} • ${esc(s.id)}</p></div><span class="badge present">Active</span></div>
+ <div class="profile-quick-actions"><button class="primary" onclick="v354StudentDetailsPdf('${s.id}')">Download PDF</button><a class="secondary button-link" href="${telLink(s.phone)}">Call Student</a>${parent?`<a class="secondary button-link" href="${telLink(parent)}">Call Parent</a>`:''}<button class="secondary" onclick="editStudent('${s.id}')">Edit</button><button class="danger" onclick="deleteStudent('${s.id}')">Delete</button></div>
+ <div class="profile-grid"><section class="profile-panel"><h3>Student Details</h3><dl><dt>Admission Number</dt><dd>${esc(s.admissionNo||'-')}</dd><dt>Student ID</dt><dd>${esc(s.id)}</dd><dt>Gender</dt><dd>${esc(s.gender||'-')}</dd><dt>Date of Birth</dt><dd>${esc(s.dob||'-')}</dd><dt>Phone</dt><dd>${esc(s.phone||'-')}</dd><dt>Parent</dt><dd>${esc(s.parentName||s.fatherName||'-')}</dd><dt>Parent Phone</dt><dd>${esc(parent||'-')}</dd><dt>Course / Batch</dt><dd>${esc(s.course||'-')} / ${esc(s.batch||'-')}</dd><dt>Address</dt><dd>${esc(s.address||'-')}</dd></dl></section><section class="profile-panel fee-panel"><h3>Fee Summary</h3><dl><dt>Monthly Fee</dt><dd>${money(l.monthly)}</dd><dt>Paid This Month</dt><dd>${money(l.monthPaid)}</dd><dt>Current Balance</dt><dd>${money(l.balance)}</dd><dt>Total Paid</dt><dd>${money(l.totalPaid)}</dd><dt>Next Due Date</dt><dd>${esc(l.nextDue||'-')}</dd></dl></section></div>
+ <div class="card"><h3>Fee Transaction History</h3>${l.rows.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Receipt</th><th>Month</th><th>Paid</th><th>Balance</th><th>Mode</th><th>PDF</th></tr></thead><tbody>${l.rows.map(f=>`<tr><td>${esc(f.date||'-')}</td><td>${esc(f.receipt||'-')}</td><td>${esc(f.month||'-')}</td><td>${money(f.paid)}</td><td>${money(Math.max(0,Number(f.amount)-Number(f.paid)))}</td><td>${esc(f.mode||'-')}</td><td><button class="secondary mini" onclick="v33DownloadFeeReceipt('${f.id}')">PDF</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No fee transactions yet.</div>'}</div>`)
+};
+
+function v354CollectionTotals(){
+ const now=new Date(),todayKey=today(),weekStart=new Date(now);weekStart.setDate(now.getDate()-6);const weekKey=localISODate(weekStart),monthKey=monthNow();
+ const sum=rows=>rows.reduce((n,f)=>n+Number(f.paid||0),0);
+ return {today:sum(db.fees.filter(f=>localISODate(f.date)===todayKey)),week:sum(db.fees.filter(f=>String(f.date||'')>=weekKey)),month:sum(db.fees.filter(f=>String(f.month||'').slice(0,7)===monthKey||String(f.date||'').slice(0,7)===monthKey))}
+}
+function v354ManualRecent(){return db.fees.filter(f=>f.submittedBy==='admin-manual').sort((a,b)=>String(b.createdAt||b.date).localeCompare(String(a.createdAt||a.date))).slice(0,12)}
+function v354StudentByAdmission(adm){const q=String(adm||'').trim().toLowerCase();return db.students.find(s=>String(s.admissionNo||'').toLowerCase()===q||String(s.id||'').toLowerCase()===q)}
+window.v354LookupManualStudent=function(){const s=v354StudentByAdmission(el('v354ManualAdmission')?.value);if(!s){el('v354ManualStudentInfo').innerHTML='<span class="danger-text">Student not found</span>';return}const l=v33StudentLedger(s);el('v354ManualStudentInfo').innerHTML=`<b>${esc(s.name)}</b> • ${esc(s.phone||'-')} • Monthly ${money(l.monthly)}`;el('v354ManualStudentId').value=s.id;el('v354ManualDue').value=l.monthly;el('v354ManualPaid').value=l.balance||l.monthly;v354CalcManual()};
+window.v354CalcManual=function(){const due=Number(el('v354ManualDue')?.value||0),paid=Number(el('v354ManualPaid')?.value||0);if(el('v354ManualBalance'))el('v354ManualBalance').value=Math.max(0,due-paid)};
+
+renderFees=function(){
+ const totals=v354CollectionTotals(),recent=v354ManualRecent();
+ el('pageContent').innerHTML=`
+ <section class="v354-collection-summary"><div><small>Today Collection</small><b>${money(totals.today)}</b></div><div><small>This Week Collection</small><b>${money(totals.week)}</b></div><div><small>This Month Collection</small><b>${money(totals.month)}</b></div></section>
+ <section class="card"><div class="v354-directory-head"><div><small>ADMIN COLLECTION DESK</small><h2>Manual Payment</h2><p>Cash / direct payment received by admin.</p></div></div>
+ <form id="v354ManualPaymentForm" class="form-grid"><div class="field"><label>Admission Number / Student ID</label><div class="v354-inline"><input id="v354ManualAdmission" required placeholder="Enter admission number"><button type="button" class="secondary" onclick="v354LookupManualStudent()">Find</button></div><small id="v354ManualStudentInfo"></small><input type="hidden" id="v354ManualStudentId" name="studentId"></div><div class="field"><label>Payment Date</label><input type="date" name="date" value="${today()}" required></div><div class="field"><label>Fee Month</label><input type="month" name="month" value="${monthNow()}" required></div><div class="field"><label>How Much To Pay</label><input id="v354ManualDue" type="number" name="amount" oninput="v354CalcManual()" required></div><div class="field"><label>Amount Paid</label><input id="v354ManualPaid" type="number" name="paid" oninput="v354CalcManual()" required></div><div class="field"><label>Remaining</label><input id="v354ManualBalance" type="number" readonly></div><div class="field"><label>Payment Mode</label><select name="mode"><option>Cash</option><option>UPI</option><option>Bank</option></select></div><div class="field"><label>Transaction / Note</label><input name="reference" placeholder="Optional"></div><div class="span-3"><button class="primary">Save Manual Payment & Receipt</button></div></form></section>
+ <section class="card"><div class="v354-directory-head"><div><small>RECENT</small><h2>Manual Payments</h2></div></div>${recent.length?`<div class="v354-simple-student-list">${recent.map(f=>{const s=db.students.find(x=>x.id===f.studentId)||{};return `<button onclick="v33DownloadFeeReceipt('${f.id}')"><span><b>${esc(s.admissionNo||f.studentId)} : ${esc(s.name||f.studentId)}</b><small>${esc(f.date||'-')} • ${money(f.paid)} • ${esc(f.mode||'-')}</small></span><em>PDF ›</em></button>`}).join('')}</div>`:'<div class="empty">No manual payments yet.</div>'}</section>`;
+ el('v354ManualPaymentForm').onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target)),s=db.students.find(x=>x.id===o.studentId);if(!s)return alert('Studentని Find buttonతో select చేయండి.');o.id=uid();o.amount=Number(o.amount);o.paid=Number(o.paid);if(o.paid<=0||o.paid>o.amount)return alert('Payment amount సరైనదిగా నమోదు చేయండి.');o.receipt=nextReceipt();o.submittedBy='admin-manual';o.createdAt=new Date().toISOString();db.fees.push(o);s.nextDueDate=v33DatePlusMonth(o.date);logAction('manual_fee_payment',`Manual fee: ${s.name} — ${money(o.paid)}`);saveDB();v33FeeReceiptPdf(s,o);renderFees()}
+};
+
+window.v354TodayAttendancePdf=function(){
+ const rows=db.attendance.filter(a=>localISODate(a.date)===today()).sort((a,b)=>String(a.time||'').localeCompare(String(b.time||''))).map((a,i)=>{const s=db.students.find(x=>x.id===a.studentId)||{};return {n:i+1,admission:s.admissionNo||'-',name:s.name||a.studentId,batch:s.batch||'-',status:a.status||'Present',time:a.time?fmtDateTime(a.time):'-'}});
+ v353TablePdf('TODAY ATTENDANCE',today(),[{label:'#',key:'n',w:.4},{label:'Admission No',key:'admission',w:1.2},{label:'Student Name',key:'name',w:2.2},{label:'Batch',key:'batch',w:1.3},{label:'Status',key:'status',w:1.2},{label:'Time',key:'time',w:1.8}],rows,`Today_Attendance_${today()}.pdf`)
+};
+
+v353OpenPdfReports=function(){openModal(`<div class="v353-report-modal"><h2>PDF Reports</h2><p class="muted">Group sharing మరియు office records కోసం.</p><div class="v353-report-grid"><button onclick="v353UpcomingWeekPdf()"><b>Next 7 Days Due List</b><span>No phone numbers</span></button><button onclick="v353PendingMonthPdf()"><b>Last 30 Days Pending List</b><span>No phone numbers</span></button><button onclick="v353BatchStudentsPdf()"><b>Total Student Details</b><span>Select batch • phone included</span></button><button onclick="v353ThisMonthPaymentsPdf()"><b>This Month Payments</b><span>Complete payment details</span></button><button onclick="v354TodayAttendancePdf()"><b>Today Attendance</b><span>Present student list</span></button></div></div>`)};
+
+renderDashboard=function(){
+ const active=v354Admitted(),todayAdmissions=db.students.filter(s=>s.status!=='Inactive'&&(s.applicationDate||s.joinDate)===today()).length,collected=db.fees.filter(f=>localISODate(f.date)===today()).reduce((n,f)=>n+Number(f.paid||0),0),outside=db.movements.filter(m=>v291NormalizeStatus(m.status,'movement')==='Outside'),todayAtt=db.attendance.filter(a=>localISODate(a.date)===today()),recent=[...db.fees.slice(-4).map(f=>({time:f.createdAt||f.date,text:`Fee paid: ${db.students.find(s=>s.id===f.studentId)?.name||f.studentId} — ${money(f.paid)}`,page:'fees'})),...db.movements.slice(-4).map(m=>({time:m.outTime,text:`${db.students.find(s=>s.id===m.studentId)?.name||m.studentId} — ${m.status||'Outside'}`,page:'movement'})),...db.students.slice(-4).map(s=>({time:s.createdAt||s.joinDate,text:`Admission: ${s.name}`,page:'admissions'}))].sort((a,b)=>String(b.time||'').localeCompare(String(a.time||''))).slice(0,6);
+ el('pageContent').innerHTML=`<section class="v35-welcome"><div><small>ADMIN DASHBOARD</small><h1>${esc(db.settings.hallName)}</h1><p>${esc(db.settings.academicYear||'')} • Simple daily overview</p></div><button class="v35-settings" onclick="render('settings')">⚙ Settings</button></section><section class="v35-metrics clean-v35-metrics">${v35Metric('Students',active.length,'students')}${v35Metric('Admissions',todayAdmissions,'admissions')}${v35Metric('Collections',money(collected),'fees')}<button class="v35-metric v353-pdf-card" onclick="v353OpenPdfReports()"><span>PDF Reports</span><b>5</b><small>Open reports ›</small></button>${v35Metric('Currently Outside',outside.length,'movement')}${v35Metric('Today Attendance',todayAtt.length,'attendance')}</section><section class="card v35-recent clean-recent"><div class="v35-section-title"><div><small>RECENT ACTIVITY</small><h2>Latest Updates</h2></div></div>${recent.length?recent.map(r=>`<button onclick="render('${r.page}')"><span>${esc(r.text)}</span><small>${esc(fmtDateTime(r.time))}</small></button>`).join(''):'<div class="empty">No recent activity.</div>'}</section>`
+};
+
+// First-fee choice for provisional students: New student online entry or old student historical payment.
+function v354OldStudentFeeForm(s){const monthly=hallFee(s);return `<div class="card"><div class="v354-directory-head"><div><small>EXISTING / OLD STUDENT</small><h2>Previous Fee Entry</h2><p>Already paid fee details enter చేసి admission complete చేయండి.</p></div></div><form id="v354OldStudentFeeForm" class="form-grid"><div class="field"><label>Admission Number</label><input name="admissionNo" value="${esc(s.admissionNo||'')}" required></div><div class="field"><label>Paid Date</label><input type="date" name="date" value="${today()}" required></div><div class="field"><label>Fee Month</label><input type="month" name="month" value="${monthNow()}" required></div><div class="field"><label>How Much To Pay</label><input id="v354OldAmount" type="number" name="amount" value="${monthly}" required oninput="v354OldCalc()"></div><div class="field"><label>Amount Paid</label><input id="v354OldPaid" type="number" name="paid" value="${monthly}" required oninput="v354OldCalc()"></div><div class="field"><label>Remaining</label><input id="v354OldBalance" type="number" value="0" readonly></div><div class="field"><label>Mode</label><select name="mode"><option>Cash</option><option>UPI</option><option>Bank</option></select></div><div class="field"><label>Reference / Note</label><input name="reference"></div><div class="span-3"><button class="primary">Submit & Complete Admission</button></div></form></div>`}
+window.v354OldCalc=function(){const a=Number(el('v354OldAmount')?.value||0),p=Number(el('v354OldPaid')?.value||0);if(el('v354OldBalance'))el('v354OldBalance').value=Math.max(0,a-p)};
+window.v354ShowFirstFee=function(type){const s=currentStudent();if(!s)return;if(type==='old'){el('v354FirstFeeArea').innerHTML=v354OldStudentFeeForm(s);el('v354OldStudentFeeForm').onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target));o.amount=Number(o.amount);o.paid=Number(o.paid);if(o.paid<=0||o.paid>o.amount)return alert('Amount సరైనదిగా నమోదు చేయండి.');s.admissionNo=o.admissionNo.trim();s.admissionComplete=true;s.applicationStatus='Admission Completed';s.admissionCompletedAt=new Date().toISOString();s.nextDueDate=v33DatePlusMonth(o.date);const f={id:uid(),studentId:s.id,month:o.month,amount:o.amount,paid:o.paid,date:o.date,mode:o.mode,reference:o.reference||'',receipt:nextReceipt(),submittedBy:'old-student-entry',createdAt:new Date().toISOString(),admissionPayment:true};db.fees.push(f);saveDB();v33FeeReceiptPdf(s,f);renderStudentPage('overview');alert('Old student admission and fee entry completed.')}}else{el('v354FirstFeeArea').innerHTML=v33RenderStudentFees(s);v33BindStudentFeeForm(s)}};
+
+const v354PrevRenderStudentPage=renderStudentPage;
+renderStudentPage=function(page='overview'){
+ const s=currentStudent();
+ if(s&&!s.admissionComplete&&page==='fees'){
+  el('studentWelcome').innerHTML=`<div><p>Fee Payment Pending</p><h1>${esc(s.name||'Student')}</h1><span>${esc(s.id)} • Provisional Admission</span></div><div class="student-avatar">${esc((s.name||'S').charAt(0).toUpperCase())}</div>`;
+  el('studentPageContent').innerHTML=`<section class="card"><div class="v354-directory-head"><div><small>FIRST PAYMENT</small><h2>Select Student Type</h2></div></div><div class="v354-type-choice"><button onclick="v354ShowFirstFee('new')"><b>New Student</b><span>Normal first online payment</span></button><button onclick="v354ShowFirstFee('old')"><b>Old Student</b><span>Enter already-paid fee details</span></button></div><div id="v354FirstFeeArea"></div></section>`;return;
+ }
+ return v354PrevRenderStudentPage(page)
+};
+
+const v354Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.5.3'));if(v354Badge)v354Badge.textContent='v3.5.4 • Clean Admin Workflow';
+db.meta.schemaVersion=8;saveDB();
