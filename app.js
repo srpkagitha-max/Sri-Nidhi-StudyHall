@@ -172,7 +172,7 @@ function renderDashboard(){
  const lastBackup=db.meta?.lastBackupAt?new Date(db.meta.lastBackupAt).toLocaleString('en-IN'):'Not created yet';
  content.innerHTML=`
  <section class="home-welcome">
-   <p>V3.0 RC</p>
+   <p>V3.1.3 RC</p>
    <h1>${esc(db.settings.hallName)}</h1>
    <span>${esc(db.settings.academicYear||'')} • Student Management, Fees & Security</span>
  </section>
@@ -183,10 +183,26 @@ function renderDashboard(){
   <button onclick="render('movement')"><small>Currently Outside</small><b>${outside}</b></button>
  </section>
  <div class="v3-sync-note"><span><b>Live database:</b> ${db.attendance.length} attendance • ${db.fees.length} fees • ${db.movements.length} entry/exit records</span><small>Last backup: ${esc(lastBackup)}</small></div>
+ ${renderAdminNotifications()}
  <section class="home-menu-list" aria-label="Main modules">
-   ${homeCard('students','Students')}${homeCard('admissions','Admissions')}${homeCard('attendance','Attendance')}${homeCard('movement','Entry / Exit')}${homeCard('notices','Notices')}${homeCard('diary','Daily Diary')}${homeCard('dailyupdates','Daily Updates')}${homeCard('fees','Fees')}${homeCard('pending','Pending Fees')}${homeCard('reports','Reports')}${homeCard('settings','Settings')}
+   ${homeCard('students','Students')}${homeCard('attendance','Attendance')}${homeCard('movement','Entry / Exit')}${homeCard('fees','Fees')}${homeCard('notices','Notices')}${homeCard('reports','Reports')}${homeCard('settings','Settings')}
  </section>`;
 }
+
+function renderAdminNotifications(){
+ const t=today(), now=Date.now();
+ const attendance=db.attendance.filter(a=>localISODate(a.date)===t&&String(a.submittedBy||a.source||'').toLowerCase().includes('student'));
+ const outside=db.movements.filter(m=>v291NormalizeStatus(m.status,'movement')==='Outside');
+ const overdue=outside.filter(m=>m.expectedReturn&&new Date(m.expectedReturn).getTime()<now);
+ const newRequests=outside.filter(m=>String(m.submittedBy||'').toLowerCase()==='student');
+ const items=[];
+ if(overdue.length)items.push(`<button onclick="render('movement')"><b>${overdue.length} overdue return${overdue.length===1?'':'s'}</b><span>Expected return time crossed. Check location now.</span><em>Urgent</em></button>`);
+ if(newRequests.length)items.push(`<button onclick="render('movement')"><b>${newRequests.length} student outside request${newRequests.length===1?'':'s'}</b><span>Open Entry / Exit to view destination and GPS updates.</span><em>Open</em></button>`);
+ if(attendance.length)items.push(`<button onclick="render('attendance')"><b>${attendance.length} self-attendance submission${attendance.length===1?'':'s'}</b><span>Students marked attendance today.</span><em>Review</em></button>`);
+ if(!items.length)items.push(`<div class="admin-alert-empty"><b>No urgent alerts</b><span>New attendance, outside requests and overdue returns will appear here.</span></div>`);
+ return `<section class="admin-alerts"><div class="admin-alert-head"><div><small>ADMIN NOTIFICATIONS</small><h2>Today’s Alerts</h2></div><span>${overdue.length+newRequests.length+attendance.length}</span></div><div class="admin-alert-list">${items.join('')}</div></section>`;
+}
+
 function homeCard(page,label){return `<button class="home-menu-card" onclick="render('${page}')"><span>${label}</span><b aria-hidden="true">›</b></button>`}
 
 function renderDailyUpdates(){
@@ -303,7 +319,7 @@ function renderDiary(){const d=window._diaryDate||today(),entry=db.diary.find(x=
 function buildDailySummary(d){const admissions=db.students.filter(s=>s.joinDate===d).length,fees=db.fees.filter(f=>f.date===d),collection=fees.reduce((a,f)=>a+Number(f.paid||0),0),present=db.attendance.filter(a=>a.date===d&&a.status==='Present').length,absent=db.attendance.filter(a=>a.date===d&&a.status==='Absent').length,out=db.movements.filter(m=>String(m.outTime||'').startsWith(d)).length,returned=db.movements.filter(m=>String(m.returnTime||'').startsWith(d)).length,entry=db.diary.find(x=>x.date===d)||{};return `Date: ${d}\nNew Admissions: ${admissions}\nFee Transactions: ${fees.length}\nFee Collection: ${money(collection)}\nPresent: ${present}\nAbsent: ${absent}\nWent Outside: ${out}\nReturned: ${returned}\nExpenses: ${money(entry.expenses||0)}\nNet Cash Position: ${money(collection-Number(entry.expenses||0))}\n\nNotes: ${entry.notes||'-'}\nExpense Details: ${entry.expenseDetails||'-'}`}
 window.downloadDailyClosingPDF=()=>{const d=el('diaryDate').value,{jsPDF}=window.jspdf,doc=new jsPDF();doc.setFontSize(16);doc.text(db.settings.hallName,14,18);doc.setFontSize(12);doc.text('Daily Closing Report',14,27);doc.setFontSize(10);const lines=doc.splitTextToSize(buildDailySummary(d),180);doc.text(lines,14,40);doc.save(`Daily-Closing-${d}.pdf`)}
 
-function renderReports(){el('pageContent').innerHTML=`<div class="grid stats"><div class="card"><h3>Student List</h3><p class="muted">All active and inactive students.</p><button class="primary" onclick="downloadStudentsPDF()">Download PDF</button></div><div class="card"><h3>Pending Fees</h3><p class="muted">Current month pending list.</p><button class="primary" onclick="downloadPendingPDF()">Download PDF</button></div><div class="card"><h3>Daily Closing</h3><p class="muted">Today collection, attendance and movement.</p><button class="primary" onclick="render('diary')">Open Diary</button></div><div class="card"><h3>Backup</h3><p class="muted">Complete local database backup.</p><button class="secondary" onclick="downloadBackup()">Download JSON</button></div><div class="card"><h3>Restore Backup</h3><p class="muted">Restore a valid Sri Nidhi backup.</p><input id="restoreFile" type="file" accept="application/json"><button class="secondary" onclick="restoreBackup()">Restore</button></div><div class="card"><h3>Install as App</h3><p class="muted">Chrome menu → Add to Home screen.</p><div class="install-tip">Works after GitHub Pages deployment.</div></div></div>`}
+function renderReports(){el('pageContent').innerHTML=`<div class="grid stats"><div class="card"><h3>Student List</h3><p class="muted">All active and inactive students.</p><button class="primary" onclick="downloadStudentsPDF()">Download PDF</button></div><div class="card"><h3>Pending Fees</h3><p class="muted">Current month pending list.</p><button class="primary" onclick="downloadPendingPDF()">Download PDF</button></div><div class="card"><h3>Backup</h3><p class="muted">Complete local database backup.</p><button class="secondary" onclick="downloadBackup()">Download JSON</button></div><div class="card"><h3>Restore Backup</h3><p class="muted">Restore a valid Sri Nidhi backup.</p><input id="restoreFile" type="file" accept="application/json"><button class="secondary" onclick="restoreBackup()">Restore</button></div><div class="card"><h3>Install as App</h3><p class="muted">Chrome menu → Add to Home screen.</p><div class="install-tip">Works after GitHub Pages deployment.</div></div></div>`}
 
 /* v2.5 Build 2 — Student Master, PDF/Excel/CSV bulk import */
 let studentImportRows=[];

@@ -314,3 +314,19 @@ th{background:#f3f9f8;color:#35595a}
   .exam-login-header h1{font-size:18px}
   .exam-login-header p{font-size:10px}
 }
+
+
+/* v3.1.3 simplified admin + notification centre */
+.admin-alerts{margin:18px 0;background:#fff;border:1px solid #dcebea;border-radius:24px;padding:18px;box-shadow:0 12px 30px rgba(8,82,77,.08)}
+.admin-alert-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+.admin-alert-head small{display:block;font-weight:900;letter-spacing:.08em;color:#12877e;font-size:11px}
+.admin-alert-head h2{margin:3px 0 0;font-size:22px;color:#123f3c}
+.admin-alert-head>span{display:grid;place-items:center;min-width:42px;height:42px;border-radius:14px;background:#e7f7f5;color:#087d75;font-weight:900;font-size:18px}
+.admin-alert-list{display:grid;gap:10px}
+.admin-alert-list button,.admin-alert-empty{width:100%;border:1px solid #dce8e7;border-radius:16px;background:#f8fbfb;padding:14px;text-align:left;display:grid;grid-template-columns:1fr auto;gap:4px 12px;color:#163f3c}
+.admin-alert-list button b,.admin-alert-empty b{font-size:15px}
+.admin-alert-list button span,.admin-alert-empty span{grid-column:1;color:#6d8381;font-size:13px;line-height:1.4}
+.admin-alert-list button em{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;font-weight:900;color:#0b8078;background:#e4f5f3;padding:7px 10px;border-radius:999px;font-size:12px}
+.admin-alert-list button:first-child em{color:#a63342;background:#ffe7eb}
+.admin-alert-list button:hover{border-color:#8dcfc9;background:#f1fbfa}
+@media(max-width:600px){.admin-alerts{padding:14px;border-radius:20px}.admin-alert-head h2{font-size:19px}.admin-alert-list button,.admin-alert-empty{padding:12px}.home-menu-list{gap:10px}}
