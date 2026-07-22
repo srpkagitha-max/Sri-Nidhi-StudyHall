@@ -113,7 +113,7 @@ function switchLoginRole(role){
  (student?el('studentLoginId'):el('loginUser')).focus();
 }
 el('showAdminLogin').onclick=()=>switchLoginRole('admin');el('showStudentLogin').onclick=()=>switchLoginRole('student');
-el('loginBtn').onclick=()=>{const u=el('loginUser').value.trim(),p=el('loginPass').value;if(u===db.settings.adminUser&&p===db.settings.adminPass){sessionStorage.removeItem(STUDENT_SESSION_KEY);el('loginView').classList.add('hidden');el('studentAppView').classList.add('hidden');el('appView').classList.remove('hidden');history.replaceState({page:'dashboard'},'',location.href);render('dashboard',false)}else el('loginError').textContent='Wrong username or password'};
+el('loginBtn').onclick=()=>{const u=el('loginUser').value.trim(),p=el('loginPass').value;if(u===db.settings.adminUser&&p===db.settings.adminPass){sessionStorage.removeItem(STUDENT_SESSION_KEY);el('loginView').classList.add('hidden');el('studentAppView').classList.add('hidden');el('appView').classList.remove('hidden');snhInitBackGuard('admin');render('dashboard',false)}else el('loginError').textContent='Wrong username or password'};
 el('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')el('loginBtn').click()});
 el('logoutBtn').onclick=()=>{sessionStorage.removeItem(STUDENT_SESSION_KEY);location.reload()};
 el('studentLoginBtn').onclick=studentLogin;
@@ -128,7 +128,7 @@ function studentLogin(){
  sessionStorage.setItem(STUDENT_SESSION_KEY,JSON.stringify({studentId:student.id,loginAt:new Date().toISOString()}));openStudentPortal(student.id);
 }
 function activeStudent(){try{const x=JSON.parse(sessionStorage.getItem(STUDENT_SESSION_KEY)||'{}');return db.students.find(s=>s.id===x.studentId&&s.status!=='Inactive')||null}catch{return null}}
-function openStudentPortal(studentId){const s=db.students.find(x=>x.id===studentId);if(!s)return;el('loginView').classList.add('hidden');el('appView').classList.add('hidden');el('studentAppView').classList.remove('hidden');el('studentHallName').textContent=db.settings.hallName;renderStudentPage('overview')}
+function openStudentPortal(studentId){const s=db.students.find(x=>x.id===studentId);if(!s)return;el('loginView').classList.add('hidden');el('appView').classList.add('hidden');el('studentAppView').classList.remove('hidden');el('studentHallName').textContent=db.settings.hallName;snhInitBackGuard('student');renderStudentPage('overview')}
 function studentAttendanceStats(s){const rows=db.attendance.filter(a=>a.studentId===s.id),p=rows.filter(a=>v291NormalizeStatus(a.status,'attendance')==='Present').length,ab=rows.filter(a=>v291NormalizeStatus(a.status,'attendance')==='Absent').length;return {rows,p,ab,total:rows.length,pct:rows.length?Math.round(p*100/rows.length):0}}
 function studentFeeStats(s){const rows=db.fees.filter(f=>f.studentId===s.id),paid=rows.reduce((n,f)=>n+Number(f.paid||0),0),month=today().slice(0,7),monthPaid=rows.filter(f=>f.month===month).reduce((n,f)=>n+Number(f.paid||0),0),due=Math.max(0,hallFee(s)-monthPaid);return {rows,paid,month,monthPaid,due}}
 function renderStudentPage(page='overview'){
@@ -1383,6 +1383,47 @@ window.addEventListener('popstate',()=>{
   }
 });
 
+
+
+/* =========================================================
+   V4.0.1 HOTFIX — Android / PWA back-button protection
+   Inner page: Back returns to home.
+   Home: Back asks before exiting the installed app/browser.
+   ========================================================= */
+let snhBackMode='', snhExitInProgress=false, snhExitDialogOpen=false;
+function snhInitBackGuard(mode){
+  snhBackMode=mode;
+  snhExitInProgress=false;
+  const root=mode==='student'?{snhRoot:'student',studentPage:'overview'}:{snhRoot:'admin',page:'dashboard'};
+  const guard=mode==='student'?{snhGuard:'student',studentPage:'overview'}:{snhGuard:'admin',page:'dashboard'};
+  history.replaceState(root,'',location.href);
+  history.pushState(guard,'',location.href);
+}
+function snhOnHomeScreen(){
+  if(!el('appView').classList.contains('hidden'))return currentPage==='dashboard';
+  if(!el('studentAppView').classList.contains('hidden'))return v353StudentPage==='overview';
+  return false;
+}
+window.addEventListener('popstate',function snhExitGuard(e){
+  if(snhExitInProgress)return;
+  const mode=!el('appView').classList.contains('hidden')?'admin':(!el('studentAppView').classList.contains('hidden')?'student':'');
+  if(!mode||!snhOnHomeScreen())return;
+  // A normal detail-page Back lands on the guard entry; do not ask to exit there.
+  if(e.state?.snhGuard===mode)return;
+  if(e.state?.snhRoot!==mode)return;
+  if(snhExitDialogOpen){history.pushState(mode==='student'?{snhGuard:'student',studentPage:'overview'}:{snhGuard:'admin',page:'dashboard'},'',location.href);return;}
+  snhExitDialogOpen=true;
+  const leave=window.confirm('Exit Sri Nidhi Study Hall?\n\nDo you want to exit the app?');
+  snhExitDialogOpen=false;
+  if(leave){
+    snhExitInProgress=true;
+    // We are already on the root history entry. One more Back exits the PWA/app.
+    setTimeout(()=>history.back(),30);
+  }else{
+    history.pushState(mode==='student'?{snhGuard:'student',studentPage:'overview'}:{snhGuard:'admin',page:'dashboard'},'',location.href);
+  }
+});
+
 // Version marker
 const v353Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.5.2'));if(v353Badge)v353Badge.textContent='v3.5.3 • Clean Reports & Navigation';
 
@@ -1394,7 +1435,7 @@ const v353Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent
    - Today attendance PDF
    - Old/New student first-payment flow
    ========================================================= */
-const V354_VERSION='3.5.4.1';
+const V354_VERSION='4.0.1';
 
 function v354Admitted(){return db.students.filter(s=>s.status!=='Inactive'&&admissionComplete(s)).sort((a,b)=>String(a.admissionNo||a.id).localeCompare(String(b.admissionNo||b.id),undefined,{numeric:true}))}
 function v354Gender(s){return String(s.gender||'').toLowerCase()}
