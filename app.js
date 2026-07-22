@@ -1257,7 +1257,7 @@ v33FeeReceiptPdf=function(s,f){
 };
 
 // Re-label top version badge and student hall name.
-const badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.3 RC'));if(badge)badge.textContent='v3.5 FINAL RC • Scope Locked';
+const badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.3 RC'));if(badge)badge.textContent='v4.0 FINAL • Stable Release';
 if(el('studentHallName'))el('studentHallName').textContent=db.settings.hallName||'Sri Nidhi Study Hall';
 
 /* =========================================================
@@ -1484,5 +1484,5 @@ renderStudentPage=function(page='overview'){
  return v354PrevRenderStudentPage(page)
 };
 
-const v354Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.5.3'));if(v354Badge)v354Badge.textContent='v3.5.4.1 • Student Portal Fix';
+const v354Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.5.3'));if(v354Badge)v354Badge.textContent='v4.0 FINAL • Stable Release';
 db.meta.schemaVersion=8;saveDB();
