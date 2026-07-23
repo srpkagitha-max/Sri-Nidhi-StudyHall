@@ -1579,3 +1579,134 @@ renderStudentPage=function(page='overview'){
 
 const v354Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&x.textContent.includes('v3.5.3'));if(v354Badge)v354Badge.textContent='v4.0.2 • Custom Exit Dialog';
 db.meta.schemaVersion=8;saveDB();
+
+/* =========================================================
+   V4.1 — Direct Admission + Student Login
+   Exact approved flow:
+   1) App opens with Admission Form / Student Login.
+   2) Admission details + first fee are completed together.
+   3) One admission-confirmation PDF contains student details,
+      first-fee receipt, Student ID and password.
+   4) Later student fee payments create fee-receipt PDF only.
+   5) Student home shows only five options.
+   ========================================================= */
+const V41_VERSION='4.1';
+
+function v41Landing(){
+  const card=document.querySelector('.exam-student-card');
+  if(!card)return;
+  card.innerHTML=`
+    <div id="v41ChoicePanel" class="v41-choice-panel">
+      <button type="button" class="v41-choice" onclick="v41OpenAdmission()"><span class="v41-choice-icon">📝</span><b>Admission Form</b></button>
+      <button type="button" class="v41-choice" onclick="v41ShowStudentLogin()"><span class="v41-choice-icon">🎓</span><b>Student Login</b></button>
+    </div>
+    <div id="studentLoginPanel" class="login-panel hidden v41-login-panel">
+      <button type="button" class="v41-back" onclick="v41ShowChoices()">← Back</button>
+      <div class="student-login-heading">Student Login</div>
+      <label>Student ID</label>
+      <input id="studentLoginId" placeholder="Enter Student ID" autocomplete="username" autocapitalize="characters">
+      <label>Password</label>
+      <input id="studentLoginPassword" type="password" placeholder="Enter Password" autocomplete="current-password">
+      <button id="studentLoginBtn" class="primary full exam-start-btn">STUDENT LOGIN →</button>
+      <div id="studentLoginError" class="error"></div>
+    </div>`;
+  el('studentLoginBtn').onclick=studentLogin;
+  el('studentLoginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')studentLogin()});
+}
+window.v41ShowChoices=function(){el('v41ChoicePanel')?.classList.remove('hidden');el('studentLoginPanel')?.classList.add('hidden')};
+window.v41ShowStudentLogin=function(){el('v41ChoicePanel')?.classList.add('hidden');el('studentLoginPanel')?.classList.remove('hidden');setTimeout(()=>el('studentLoginId')?.focus(),50)};
+
+function v41AdmissionId(){
+  let n=db.students.length+1,id;
+  do{id=`SN${new Date().getFullYear()}${String(n++).padStart(4,'0')}`}while(db.students.some(s=>s.id===id));
+  return id;
+}
+function v41Password(){return Math.random().toString(36).slice(2,8).toUpperCase()}
+function v41AdmissionNo(){return nextAdmissionNumber()}
+
+window.v41OpenAdmission=function(){
+  openModal(`<div class="v41-admission"><h2>Admission Form</h2><form id="v41AdmissionForm" class="form-grid">
+    <div class="field span-3 v41-section-title">Student Details</div>
+    <div class="field"><label>Student Name *</label><input name="name" required></div>
+    <div class="field"><label>Date of Birth</label><input type="date" name="dob"></div>
+    <div class="field"><label>Gender</label><select name="gender"><option>Male</option><option>Female</option><option>Other</option></select></div>
+    <div class="field"><label>Student Mobile *</label><input name="phone" inputmode="numeric" maxlength="10" required></div>
+    <div class="field"><label>Father / Guardian Name *</label><input name="parentName" required></div>
+    <div class="field"><label>Parent Mobile *</label><input name="parentPhone" inputmode="numeric" maxlength="10" required></div>
+    <div class="field"><label>Course / Class *</label><input name="course" required></div>
+    <div class="field"><label>Batch / Timing</label><input name="batch"></div>
+    <div class="field"><label>Address</label><input name="address"></div>
+
+    <div class="field span-3 v41-section-title">Admission Fee Payment</div>
+    <div class="field"><label>Fee Month *</label><input type="month" name="month" value="${monthNow()}" required></div>
+    <div class="field"><label>Fee Amount *</label><input type="number" name="amount" value="${Number(db.settings.monthlyFee||0)}" min="1" required></div>
+    <div class="field"><label>Amount Paid *</label><input type="number" name="paid" value="${Number(db.settings.monthlyFee||0)}" min="1" required></div>
+    <div class="field"><label>Payment Date *</label><input type="date" name="date" value="${today()}" required></div>
+    <div class="field"><label>Payment Mode *</label><select name="mode"><option>UPI</option><option>Cash</option><option>Bank</option><option>Card</option></select></div>
+    <div class="field"><label>Transaction ID / Reference</label><input name="reference"></div>
+    <div class="span-3"><button class="primary full">Confirm Admission & Download PDF</button></div>
+  </form></div>`);
+  el('v41AdmissionForm').onsubmit=v41SubmitAdmission;
+};
+
+function v41SubmitAdmission(e){
+  e.preventDefault();
+  const o=Object.fromEntries(new FormData(e.target));
+  const phone=digitsOnly(o.phone),parentPhone=digitsOnly(o.parentPhone),amount=Number(o.amount||0),paid=Number(o.paid||0);
+  if(phone.length!==10||parentPhone.length!==10)return alert('Mobile numbers 10 digits ఉండాలి.');
+  if(paid<=0||amount<=0||paid>amount)return alert('Fee amount సరైనదిగా నమోదు చేయండి.');
+  if(db.students.some(s=>digitsOnly(s.phone)===phone&&s.status!=='Inactive'))return alert('ఈ mobile numberతో student ఇప్పటికే ఉన్నారు.');
+  const s={id:v41AdmissionId(),password:v41Password(),admissionNo:v41AdmissionNo(),name:o.name.trim(),dob:o.dob||'',gender:o.gender||'',phone,parentName:o.parentName.trim(),parentPhone,address:o.address?.trim()||'',course:o.course.trim(),batch:o.batch?.trim()||'',monthlyFee:amount,joinDate:o.date,applicationDate:o.date,applicationStatus:'Admission Completed',admissionComplete:true,admissionCompletedAt:new Date().toISOString(),nextDueDate:v33DatePlusMonth(o.date),status:'Active',createdBy:'student-self-admission',createdAt:new Date().toISOString()};
+  const f={id:uid(),studentId:s.id,month:o.month,amount,paid,date:o.date,mode:o.mode,reference:o.reference||'',receipt:nextReceipt(),nextDueDate:s.nextDueDate,submittedBy:'admission-form',admissionPayment:true,createdAt:new Date().toISOString()};
+  db.students.push(s);db.fees.push(f);logAction('admission_complete',`${s.name} admission completed (${s.admissionNo})`);saveDB();closeModal();v41AdmissionPdf(s,f);alert(`Admission Confirmed\nStudent ID: ${s.id}\nPassword: ${s.password}`);
+}
+
+function v41AdmissionPdf(s,f){
+  if(!v33PdfAvailable())return alert('PDF library load కాలేదు.');
+  const {jsPDF}=window.jspdf,doc=new jsPDF();
+  v35PdfHeader(doc,'ADMISSION CONFIRMATION',s.admissionNo);
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Student Details',16,54);
+  let y=v35PdfRows(doc,[['Admission Number',s.admissionNo],['Student Name',s.name],['Date of Birth',s.dob||'-'],['Gender',s.gender||'-'],['Student Mobile',s.phone],['Parent / Guardian',s.parentName],['Parent Mobile',s.parentPhone],['Course / Class',s.course],['Batch / Timing',s.batch||'-'],['Admission Date',s.joinDate]],64);
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Fee Receipt',16,y+3);y=v35PdfRows(doc,[['Receipt Number',f.receipt],['Fee Month',f.month],['Fee Amount',money(f.amount)],['Amount Paid',money(f.paid)],['Payment Date',f.date],['Payment Mode',f.mode],['Transaction / Reference',f.reference||'-'],['Next Due Date',s.nextDueDate]],y+13);
+  doc.setFillColor(235,248,247);doc.roundedRect(16,y+2,178,29,3,3,'F');doc.setTextColor(15,103,98);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('STUDENT LOGIN',20,y+11);doc.setTextColor(31,49,48);doc.setFontSize(11);doc.text(`Student ID: ${s.id}`,20,y+20);doc.text(`Password: ${s.password}`,110,y+20);
+  doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(110,130,128);doc.text('Admission confirmed and fee received.',105,286,{align:'center'});
+  v33SavePdf(doc,`${s.admissionNo}_${s.name.replace(/\W+/g,'_')}_Admission.pdf`);
+}
+
+const v41PreviousRenderStudentPage=renderStudentPage;
+renderStudentPage=function(page='overview'){
+  const s=activeStudent();
+  if(!s)return v41PreviousRenderStudentPage(page);
+  v353StudentPage=page;
+  el('studentWelcome').innerHTML=`<div><h1>${esc(s.name)}</h1><span>${esc(s.admissionNo||s.id)} • ${esc(s.course||'-')}</span></div><div class="student-avatar">${s.photo?`<img src="${esc(s.photo)}" alt="${esc(s.name)}">`:esc((s.name||'S').charAt(0).toUpperCase())}</div>`;
+  if(page==='overview'){
+    el('studentPageContent').innerHTML=`<section class="v41-student-home">
+      <button onclick="renderStudentPage('admission')"><span>📄</span><b>Admission</b></button>
+      <button onclick="renderStudentPage('attendance')"><span>📅</span><b>Attendance</b></button>
+      <button onclick="renderStudentPage('fees')"><span>💳</span><b>Fees</b></button>
+      <button onclick="renderStudentPage('movement')"><span>🚪</span><b>Entry / Exit</b></button>
+      <button onclick="renderStudentPage('profile')"><span>👤</span><b>Profile</b></button>
+    </section>`;return;
+  }
+  if(page==='admission'){
+    const first=db.fees.find(f=>f.studentId===s.id&&f.admissionPayment);
+    el('studentPageContent').innerHTML=`<section class="card"><h2>Admission</h2><dl><dt>Admission Number</dt><dd>${esc(s.admissionNo||'-')}</dd><dt>Student ID</dt><dd>${esc(s.id)}</dd><dt>Student Name</dt><dd>${esc(s.name)}</dd><dt>Course / Class</dt><dd>${esc(s.course||'-')}</dd><dt>Admission Date</dt><dd>${esc(s.joinDate||'-')}</dd></dl>${first?`<button class="primary full" onclick="v41AdmissionPdf(db.students.find(x=>x.id==='${s.id}'),db.fees.find(x=>x.id==='${first.id}'))">Download Admission PDF</button>`:''}</section>`;return;
+  }
+  if(page==='profile'){
+    el('studentPageContent').innerHTML=`<section class="card v35-profile"><h2>Profile</h2><dl><dt>Student ID</dt><dd>${esc(s.id)}</dd><dt>Admission Number</dt><dd>${esc(s.admissionNo||'-')}</dd><dt>Name</dt><dd>${esc(s.name)}</dd><dt>Phone</dt><dd>${esc(s.phone||'-')}</dd><dt>Parent / Guardian</dt><dd>${esc(s.parentName||'-')}</dd><dt>Parent Phone</dt><dd>${esc(s.parentPhone||'-')}</dd><dt>Course / Class</dt><dd>${esc(s.course||'-')}</dd><dt>Batch</dt><dd>${esc(s.batch||'-')}</dd><dt>Address</dt><dd>${esc(s.address||'-')}</dd></dl><div class="actions"><button class="secondary" onclick="renderStudentPage('password')">Change Password</button><button class="danger" onclick="document.getElementById('studentLogoutBtn').click()">Logout</button></div></section>`;return;
+  }
+  return v41PreviousRenderStudentPage(page);
+};
+window.v41AdmissionPdf=v41AdmissionPdf;
+
+// Keep later fee PDFs as fee receipts only; never create login/admission credentials again.
+const v41OldBindFee=v33BindStudentFeeForm;
+v33BindStudentFeeForm=function(s){
+  v41OldBindFee(s);
+  const form=el('studentFeeSelfForm');if(!form)return;
+  form.onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target)),amt=Number(o.amount||0),paid=Number(o.paid||0);if(paid<=0||paid>amt)return alert('Paid amount సరైనదిగా నమోదు చేయండి.');const f={id:uid(),studentId:s.id,month:o.month,amount:amt,paid,date:o.date,mode:o.mode,reference:o.reference||'',receipt:nextReceipt(),nextDueDate:o.nextDueDate,submittedBy:'student',createdAt:new Date().toISOString()};db.fees.push(f);s.nextDueDate=o.nextDueDate;logAction('student_fee_payment',`${s.name} recorded ${money(paid)} (${f.receipt})`);saveDB();v33FeeReceiptPdf(s,f);renderStudentPage('fees');alert('Fee payment saved. Receipt PDF downloaded.')};
+};
+
+v41Landing();
+const v41Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.0|v3\./.test(x.textContent));if(v41Badge)v41Badge.textContent='v4.1';
+db.meta.schemaVersion=9;saveDB();
