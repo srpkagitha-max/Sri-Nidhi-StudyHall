@@ -424,3 +424,31 @@ body.snh-dialog-open{overflow:hidden}
 .v413-admin-admission-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.v413-admin-admission-head small{font-weight:900;letter-spacing:.12em;color:#69807d}.v413-admin-admission-head h2{margin:.2rem 0}.v413-admin-admission-head p{margin:.2rem 0;color:#738684}
 .v413-pending-list,.v413-receipt-list{display:grid;gap:11px}.v413-pending-card{display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid #d8e7e5;border-radius:17px;padding:15px;background:#fff}.v413-pending-card b,.v413-receipt-list b{display:block;color:#173f3b}.v413-pending-card small,.v413-receipt-list small{display:block;color:#758784;margin-top:5px}.v413-receipt-list button{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;background:#fff;border:1px solid #dce8e7;border-radius:16px;padding:15px 16px}.v413-receipt-list em{font-style:normal;color:#0b8c83;font-weight:800}.v413-search-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}.v413-search-row .v354-universal-search{margin:12px 0}.v413-waiting{text-align:center;padding:38px 22px}.v413-waiting>span{font-size:46px}.v413-waiting h2{color:#174b48;margin:12px 0 8px}.v413-waiting p{max-width:520px;margin:0 auto 20px;color:#718482;line-height:1.55}
 @media(max-width:620px){.v413-admin-admission-head,.v413-pending-card{align-items:stretch;flex-direction:column}.v413-pending-card button{width:100%}.v413-search-row{grid-template-columns:1fr}.v413-search-row button{width:100%}}
+
+/* V4.1.4 — equal public buttons + WhatsApp admission invitation */
+.v41-choice-panel.v413-equal-choices{display:grid;grid-template-columns:1fr;gap:16px}
+.v41-choice-panel.v413-equal-choices .v41-choice{
+  width:100%!important;
+  min-height:108px!important;
+  height:108px!important;
+  margin:0!important;
+  padding:18px 20px!important;
+  border:1px solid #d8e9e7!important;
+  border-radius:22px!important;
+  background:#fff!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:15px!important;
+  font:800 20px system-ui!important;
+  color:#174b48!important;
+  box-shadow:0 10px 26px rgba(15,127,122,.10)!important;
+  box-sizing:border-box!important;
+}
+.v41-choice-panel.v413-equal-choices .v41-choice .v41-choice-icon{font-size:34px!important;line-height:1}
+.v414-admission-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:620px){
+  .v41-choice-panel.v413-equal-choices .v41-choice{height:105px!important;min-height:105px!important}
+  .v414-admission-actions{display:grid;grid-template-columns:1fr;width:100%}
+  .v414-admission-actions button{width:100%}
+}

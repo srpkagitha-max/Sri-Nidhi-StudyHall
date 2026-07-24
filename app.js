@@ -1818,11 +1818,27 @@ window.v413AcceptAdmission=function(id){
 };
 
 /* Admin Admission screen: manual admission + pending online approvals. */
+window.v414ShareAdmissionInvitation=function(){
+  const url=new URL(window.location.href);
+  url.search='';url.hash='';url.searchParams.set('admission','1');
+  const message=`🎓 *Sri Nidhi Study Hall Admissions*
+
+Admission pondadaniki kindha link open chesi *Admission Form* complete cheyyandi.
+
+Admission fee payment complete ayyaka vachche *Admission Confirmation Receipt* lo mee *Student ID* mariyu *Password* untayi.
+
+Vaati dwara *Student Login* chesi *Sri Nidhi Study Hall Family* lo join avvandi.
+
+🔗 *Admission Link:*
+${url.toString()}`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`,'_blank','noopener');
+};
+
 renderAdmissions=function(){
   const pending=db.students.filter(s=>s.admissionComplete&&s.adminApproved!==true&&s.status!=='Inactive').sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   const approved=db.students.filter(s=>s.adminApproved===true&&s.status!=='Inactive').sort((a,b)=>String(b.approvedAt||b.createdAt||'').localeCompare(String(a.approvedAt||a.createdAt||''))).slice(0,12);
   el('pageContent').innerHTML=`
-    <section class="card v413-admin-admission-head"><div><small>ADMIN ADMISSION</small><h2>Admissions</h2><p>Manual admission and online admission approval.</p></div><button class="primary" onclick="v413OpenManualAdmission()">+ Manual Admission</button></section>
+    <section class="card v413-admin-admission-head"><div><small>ADMIN ADMISSION</small><h2>Admissions</h2><p>Manual admission and online admission approval.</p></div><div class="v414-admission-actions"><button class="secondary" onclick="v414ShareAdmissionInvitation()">📲 Share Admission Invitation</button><button class="primary" onclick="v413OpenManualAdmission()">+ Manual Admission</button></div></section>
     <section class="card"><div class="v354-directory-head"><small>PENDING APPROVAL</small><h2>Completed Online Admissions</h2></div>
       ${pending.length?`<div class="v413-pending-list">${pending.map(s=>{const f=[...db.fees].reverse().find(x=>x.studentId===s.id&&x.admissionPayment);return `<div class="v413-pending-card"><div><b>${esc(s.admissionNo)} : ${esc(s.name)}</b><small>${esc(s.course||'-')} • ${esc(s.phone||'-')} • ${money(f?.paid||0)} • ${esc(f?.mode||'-')}</small></div><button class="primary" onclick="v413AcceptAdmission('${s.id}')">Accept Admission</button></div>`}).join('')}</div>`:'<div class="empty">No pending admissions.</div>'}
     </section>
@@ -1870,3 +1886,15 @@ for(const s of db.students){
 db.meta.schemaVersion=9;saveDB();
 
 const v413Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.1\.2|v4\.0\.2/.test(x.textContent||''));if(v413Badge)v413Badge.textContent='v4.1.3';
+
+
+/* V4.1.4 — force equal landing cards after all overrides load, plus direct admission link. */
+const V414_VERSION='4.1.4';
+v41Landing();
+setTimeout(()=>{
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('admission')==='1' && !document.getElementById('appView')?.classList.contains('hidden')===false){
+    try{v41OpenAdmission()}catch(err){console.warn('Admission link open failed',err)}
+  }
+},250);
+const v414Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.1\.3|v4\.1\.2/.test(x.textContent||''));if(v414Badge)v414Badge.textContent='v4.1.4';
