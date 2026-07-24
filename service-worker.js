@@ -1,4 +1,4 @@
-const CACHE="sri-nidhi-v4.0.2-custom-exit";
+const CACHE="sri-nidhi-v4.1.2-home-clean";
 const ASSETS=["./","./index.html","./style.css?v=4.0.2","./app.js?v=4.0.2","./manifest.json","./icon.svg","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./favicon.png"];
 self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener("activate",e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k!==CACHE)await caches.delete(k);await self.clients.claim()})()));
