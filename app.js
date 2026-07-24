@@ -1742,3 +1742,131 @@ v33BindStudentFeeForm=function(s){
 v41Landing();
 const v41Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.0|v3\./.test(x.textContent));if(v41Badge)v41Badge.textContent='v4.1.2';
 db.meta.schemaVersion=9;saveDB();
+
+/* =========================================================
+   V4.1.3 — Approval workflow + admin manual admission
+   User-approved scope only.
+   ========================================================= */
+const V413_VERSION='4.1.3';
+
+/* Public landing: three equal-size choices. */
+v41Landing=function(){
+  const card=document.querySelector('.exam-student-card');
+  if(!card)return;
+  card.innerHTML=`<div class="v41-choice-panel v413-equal-choices">
+    <button type="button" class="v41-choice" onclick="v41OpenAdmission()"><span class="v41-choice-icon">📝</span><b>Admission Form</b></button>
+    <button type="button" class="v41-choice" onclick="v41ShowStudentLogin()"><span class="v41-choice-icon">🎓</span><b>Student Login</b></button>
+    <button type="button" class="v41-choice" onclick="v41ShowAdminLogin()"><span class="v41-choice-icon">👨‍💼</span><b>Admin Login</b></button>
+  </div>`;
+};
+window.v41ShowChoices=function(){v41Landing()};
+
+/* Shared form: public admission allows online modes only; admin admission is manual. */
+function v413AdmissionForm(mode='online'){
+  const isManual=mode==='manual';
+  return `<div class="v41-admission"><h2>${isManual?'Manual Admission':'Admission Form'}</h2><form id="v413AdmissionForm" class="form-grid">
+    <input type="hidden" name="admissionMode" value="${isManual?'manual':'online'}">
+    <div class="field span-3 v41-section-title">Student Details</div>
+    <div class="field"><label>Student Name *</label><input name="name" required></div>
+    <div class="field"><label>Date of Birth</label><input type="date" name="dob"></div>
+    <div class="field"><label>Gender</label><select name="gender"><option>Male</option><option>Female</option><option>Other</option></select></div>
+    <div class="field"><label>Student Mobile *</label><input name="phone" inputmode="numeric" maxlength="10" required></div>
+    <div class="field"><label>Father / Guardian Name *</label><input name="parentName" required></div>
+    <div class="field"><label>Parent Mobile *</label><input name="parentPhone" inputmode="numeric" maxlength="10" required></div>
+    <div class="field"><label>Course / Class *</label><input name="course" required></div>
+    <div class="field"><label>Batch / Timing</label><input name="batch"></div>
+    <div class="field"><label>Address</label><input name="address"></div>
+    <div class="field span-3 v41-section-title">${isManual?'Manual Fee Payment':'Online Fee Payment'}</div>
+    <div class="field"><label>Fee Month *</label><input type="month" name="month" value="${monthNow()}" required></div>
+    <div class="field"><label>Fee Amount *</label><input type="number" name="amount" value="${Number(db.settings.monthlyFee||0)}" min="1" required></div>
+    <div class="field"><label>Amount Paid *</label><input type="number" name="paid" value="${Number(db.settings.monthlyFee||0)}" min="1" required></div>
+    <div class="field"><label>Payment Date *</label><input type="date" name="date" value="${today()}" required></div>
+    <div class="field"><label>Payment Mode *</label><select name="paymentMode">${isManual?'<option>Cash</option><option>UPI</option><option>Bank</option>':'<option>UPI</option><option>Card</option><option>Net Banking</option>'}</select></div>
+    <div class="field"><label>Transaction ID / Reference</label><input name="reference"></div>
+    <div class="span-3"><button class="primary full">${isManual?'Save Manual Admission & Download PDF':'Pay Online & Confirm Admission'}</button></div>
+  </form></div>`;
+}
+
+window.v41OpenAdmission=function(){
+  openModal(v413AdmissionForm('online'));
+  el('v413AdmissionForm').onsubmit=v413SubmitAdmission;
+};
+window.v413OpenManualAdmission=function(){
+  openModal(v413AdmissionForm('manual'));
+  el('v413AdmissionForm').onsubmit=v413SubmitAdmission;
+};
+
+function v413SubmitAdmission(e){
+  e.preventDefault();
+  const o=Object.fromEntries(new FormData(e.target));
+  const phone=digitsOnly(o.phone),parentPhone=digitsOnly(o.parentPhone),amount=Number(o.amount||0),paid=Number(o.paid||0),isManual=o.admissionMode==='manual';
+  if(phone.length!==10||parentPhone.length!==10)return alert('Mobile numbers 10 digits ఉండాలి.');
+  if(paid<=0||amount<=0||paid>amount)return alert('Fee amount సరైనదిగా నమోదు చేయండి.');
+  if(db.students.some(s=>digitsOnly(s.phone)===phone&&s.status!=='Inactive'))return alert('ఈ mobile numberతో student ఇప్పటికే ఉన్నారు.');
+  const s={id:v41AdmissionId(),password:v41Password(),admissionNo:v41AdmissionNo(),name:o.name.trim(),dob:o.dob||'',gender:o.gender||'',phone,parentName:o.parentName.trim(),parentPhone,address:o.address?.trim()||'',course:o.course.trim(),batch:o.batch?.trim()||'',monthlyFee:amount,joinDate:o.date,applicationDate:o.date,applicationStatus:isManual?'Approved':'Awaiting Admin Approval',admissionComplete:true,adminApproved:isManual,approvedAt:isManual?new Date().toISOString():'',admissionCompletedAt:new Date().toISOString(),nextDueDate:v33DatePlusMonth(o.date),status:'Active',createdBy:isManual?'admin-manual-admission':'student-online-admission',createdAt:new Date().toISOString()};
+  const f={id:uid(),studentId:s.id,month:o.month,amount,paid,date:o.date,mode:o.paymentMode,reference:o.reference||'',receipt:nextReceipt(),nextDueDate:s.nextDueDate,submittedBy:isManual?'admin-manual-admission':'online-admission',admissionPayment:true,createdAt:new Date().toISOString()};
+  db.students.push(s);db.fees.push(f);logAction(isManual?'manual_admission':'online_admission',`${s.name} admission submitted (${s.admissionNo})`);saveDB();closeModal();v41AdmissionPdf(s,f);
+  alert(isManual?`Admission Approved\nStudent ID: ${s.id}\nPassword: ${s.password}`:`Admission completed and sent for admin approval.\nStudent ID: ${s.id}\nPassword: ${s.password}`);
+  if(isManual&&currentPage==='admissions')renderAdmissions();
+}
+
+window.v413AcceptAdmission=function(id){
+  const s=db.students.find(x=>x.id===id);if(!s)return;
+  if(!confirm(`Accept admission for ${s.name}?`))return;
+  s.adminApproved=true;s.applicationStatus='Approved';s.approvedAt=new Date().toISOString();
+  logAction('admission_approved',`${s.name} (${s.admissionNo}) approved`);saveDB();renderAdmissions();
+};
+
+/* Admin Admission screen: manual admission + pending online approvals. */
+renderAdmissions=function(){
+  const pending=db.students.filter(s=>s.admissionComplete&&s.adminApproved!==true&&s.status!=='Inactive').sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  const approved=db.students.filter(s=>s.adminApproved===true&&s.status!=='Inactive').sort((a,b)=>String(b.approvedAt||b.createdAt||'').localeCompare(String(a.approvedAt||a.createdAt||''))).slice(0,12);
+  el('pageContent').innerHTML=`
+    <section class="card v413-admin-admission-head"><div><small>ADMIN ADMISSION</small><h2>Admissions</h2><p>Manual admission and online admission approval.</p></div><button class="primary" onclick="v413OpenManualAdmission()">+ Manual Admission</button></section>
+    <section class="card"><div class="v354-directory-head"><small>PENDING APPROVAL</small><h2>Completed Online Admissions</h2></div>
+      ${pending.length?`<div class="v413-pending-list">${pending.map(s=>{const f=[...db.fees].reverse().find(x=>x.studentId===s.id&&x.admissionPayment);return `<div class="v413-pending-card"><div><b>${esc(s.admissionNo)} : ${esc(s.name)}</b><small>${esc(s.course||'-')} • ${esc(s.phone||'-')} • ${money(f?.paid||0)} • ${esc(f?.mode||'-')}</small></div><button class="primary" onclick="v413AcceptAdmission('${s.id}')">Accept Admission</button></div>`}).join('')}</div>`:'<div class="empty">No pending admissions.</div>'}
+    </section>
+    <section class="card"><div class="v354-directory-head"><small>RECENT</small><h2>Approved Admissions</h2></div>
+      ${approved.length?`<div class="v354-simple-student-list">${approved.map(s=>`<button onclick="viewStudent('${s.id}')"><span><b>${esc(s.admissionNo||s.id)} : ${esc(s.name)}</b><small>${esc(s.course||'-')} • Approved</small></span><em>›</em></button>`).join('')}</div>`:'<div class="empty">No approved admissions.</div>'}
+    </section>`;
+};
+
+/* Collections is now receipt search only. */
+window.v413SearchReceipts=function(){
+  const q=(el('v413ReceiptSearch')?.value||'').trim().toLowerCase();
+  const box=el('v413ReceiptResults');if(!box)return;
+  if(!q){box.innerHTML='<div class="empty">Enter Admission Number, Student ID, name, phone or receipt number.</div>';return;}
+  const rows=db.fees.filter(f=>{const s=db.students.find(x=>x.id===f.studentId)||{};return [s.admissionNo,s.id,s.name,s.phone,s.parentPhone,f.receipt,f.month,f.date].join(' ').toLowerCase().includes(q)}).sort((a,b)=>String(b.createdAt||b.date).localeCompare(String(a.createdAt||a.date)));
+  box.innerHTML=rows.length?`<div class="v413-receipt-list">${rows.map(f=>{const s=db.students.find(x=>x.id===f.studentId)||{};return `<button onclick="v33DownloadFeeReceipt('${f.id}')"><span><b>${esc(f.receipt||'-')} • ${esc(s.name||f.studentId)}</b><small>${esc(s.admissionNo||s.id||'-')} • ${esc(f.date||'-')} • ${esc(f.month||'-')} • ${money(f.paid)} • ${esc(f.mode||'-')}</small></span><em>PDF ›</em></button>`}).join('')}</div>`:'<div class="empty">No payment receipts found.</div>';
+};
+
+renderFees=function(){
+  const totals=v354CollectionTotals();
+  el('pageContent').innerHTML=`
+    <section class="v354-collection-summary"><div><small>Today Collection</small><b>${money(totals.today)}</b></div><div><small>This Week Collection</small><b>${money(totals.week)}</b></div><div><small>This Month Collection</small><b>${money(totals.month)}</b></div></section>
+    <section class="card"><div class="v354-directory-head"><small>COLLECTIONS</small><h2>Search Payment Receipts</h2><p>Search a student and view all payment receipts.</p></div>
+      <div class="v413-search-row"><input id="v413ReceiptSearch" class="v354-universal-search" placeholder="Admission no, Student ID, name, phone or receipt"><button class="primary" onclick="v413SearchReceipts()">Search</button></div>
+      <div id="v413ReceiptResults"><div class="empty">Search to view payment receipts.</div></div>
+    </section>`;
+  el('v413ReceiptSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();v413SearchReceipts()}});
+};
+
+/* Student can log in, but features unlock only after admin acceptance. */
+const v413PreviousRenderStudentPage=renderStudentPage;
+renderStudentPage=function(page='overview'){
+  const s=activeStudent();
+  if(s&&s.adminApproved!==true){
+    el('studentWelcome').innerHTML=`<div><p>Admission Status</p><h1>${esc(s.name||'Student')}</h1><span>${esc(s.admissionNo||s.id)}</span></div><div class="student-avatar">${esc((s.name||'S').charAt(0).toUpperCase())}</div>`;
+    el('studentPageContent').innerHTML=`<section class="card v413-waiting"><span>⏳</span><h2>Awaiting Admin Approval</h2><p>Your admission and payment are completed. Student features will open after the admin accepts your admission.</p><button class="secondary" onclick="logoutStudent()">Logout</button></section>`;
+    return;
+  }
+  return v413PreviousRenderStudentPage(page);
+};
+
+/* Legacy approved students remain usable; only new online records wait. */
+for(const s of db.students){
+  if(typeof s.adminApproved==='undefined')s.adminApproved=true;
+}
+db.meta.schemaVersion=9;saveDB();
+
+const v413Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.1\.2|v4\.0\.2/.test(x.textContent||''));if(v413Badge)v413Badge.textContent='v4.1.3';
