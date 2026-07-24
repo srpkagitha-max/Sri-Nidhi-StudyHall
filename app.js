@@ -1590,7 +1590,7 @@ db.meta.schemaVersion=8;saveDB();
    4) Later student fee payments create fee-receipt PDF only.
    5) Student home shows only five options.
    ========================================================= */
-const V41_VERSION='4.1';
+const V41_VERSION='4.1.1';
 
 function v41Landing(){
   const card=document.querySelector('.exam-student-card');
@@ -1599,6 +1599,7 @@ function v41Landing(){
     <div id="v41ChoicePanel" class="v41-choice-panel">
       <button type="button" class="v41-choice" onclick="v41OpenAdmission()"><span class="v41-choice-icon">📝</span><b>Admission Form</b></button>
       <button type="button" class="v41-choice" onclick="v41ShowStudentLogin()"><span class="v41-choice-icon">🎓</span><b>Student Login</b></button>
+      <button type="button" class="v41-admin-choice" onclick="v41ShowAdminLogin()"><span>👨‍💼</span><b>Admin Login</b></button>
     </div>
     <div id="studentLoginPanel" class="login-panel hidden v41-login-panel">
       <button type="button" class="v41-back" onclick="v41ShowChoices()">← Back</button>
@@ -1609,12 +1610,50 @@ function v41Landing(){
       <input id="studentLoginPassword" type="password" placeholder="Enter Password" autocomplete="current-password">
       <button id="studentLoginBtn" class="primary full exam-start-btn">STUDENT LOGIN →</button>
       <div id="studentLoginError" class="error"></div>
+    </div>
+    <div id="adminLoginPanel" class="login-panel hidden v41-login-panel">
+      <button type="button" class="v41-back" onclick="v41ShowChoices()">← Back</button>
+      <div class="student-login-heading">Admin Login</div>
+      <label>Username</label>
+      <input id="loginUser" value="admin" autocomplete="username">
+      <label>Password</label>
+      <input id="loginPass" type="password" placeholder="Enter Password" autocomplete="current-password">
+      <button id="loginBtn" class="primary full">ADMIN LOGIN →</button>
+      <div id="loginError" class="error"></div>
     </div>`;
   el('studentLoginBtn').onclick=studentLogin;
   el('studentLoginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')studentLogin()});
+  el('loginBtn').onclick=v41AdminLogin;
+  el('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')v41AdminLogin()});
 }
-window.v41ShowChoices=function(){el('v41ChoicePanel')?.classList.remove('hidden');el('studentLoginPanel')?.classList.add('hidden')};
-window.v41ShowStudentLogin=function(){el('v41ChoicePanel')?.classList.add('hidden');el('studentLoginPanel')?.classList.remove('hidden');setTimeout(()=>el('studentLoginId')?.focus(),50)};
+function v41AdminLogin(){
+  const u=el('loginUser').value.trim(),p=el('loginPass').value;
+  if(u===db.settings.adminUser&&p===db.settings.adminPass){
+    sessionStorage.removeItem(STUDENT_SESSION_KEY);
+    el('loginView').classList.add('hidden');
+    el('studentAppView').classList.add('hidden');
+    el('appView').classList.remove('hidden');
+    snhInitBackGuard('admin');
+    render('dashboard',false);
+  }else el('loginError').textContent='Wrong username or password';
+}
+window.v41ShowChoices=function(){
+  el('v41ChoicePanel')?.classList.remove('hidden');
+  el('studentLoginPanel')?.classList.add('hidden');
+  el('adminLoginPanel')?.classList.add('hidden');
+};
+window.v41ShowStudentLogin=function(){
+  el('v41ChoicePanel')?.classList.add('hidden');
+  el('adminLoginPanel')?.classList.add('hidden');
+  el('studentLoginPanel')?.classList.remove('hidden');
+  setTimeout(()=>el('studentLoginId')?.focus(),50);
+};
+window.v41ShowAdminLogin=function(){
+  el('v41ChoicePanel')?.classList.add('hidden');
+  el('studentLoginPanel')?.classList.add('hidden');
+  el('adminLoginPanel')?.classList.remove('hidden');
+  setTimeout(()=>el('loginPass')?.focus(),50);
+};
 
 function v41AdmissionId(){
   let n=db.students.length+1,id;
@@ -1708,5 +1747,5 @@ v33BindStudentFeeForm=function(s){
 };
 
 v41Landing();
-const v41Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.0|v3\./.test(x.textContent));if(v41Badge)v41Badge.textContent='v4.1';
+const v41Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.0|v3\./.test(x.textContent));if(v41Badge)v41Badge.textContent='v4.1.1';
 db.meta.schemaVersion=9;saveDB();
