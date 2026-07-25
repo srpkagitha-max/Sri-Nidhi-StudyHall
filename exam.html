@@ -146,14 +146,21 @@ async function downloadStudentAnswerSheet(score,detail){
 }
 async function submitExam(auto){
   if(submitting)return;submitting=true;$('submitModal').hidden=true;clearInterval(timerInt);clearInterval(autoSaveInt);saveTime();
-  let score=0;let detail=qs.map((q,i)=>{let correct=ans[i]===q.answer;if(correct)score+=Number(q.marks||1);return {q:i+1,subject:q.subject||'General',answer:ans[i]||'',correctAnswer:q.answer,correct,timeSpent:spent[i]||0,question:q.question||'',options:q.options||[]}});
+  let score=0;let detail=qs.map((q,i)=>{const marks=Number(q.marks||1);let correct=ans[i]===q.answer;if(correct)score+=marks;return {q:i+1,subject:q.subject||'General',answer:ans[i]||'',correctAnswer:q.answer,correct,marks:correct?marks:0,maxMarks:marks,timeSpent:spent[i]||0,question:q.question||'',options:q.options||[]}});
+  const totalMarks=detail.reduce((sum,d)=>sum+Number(d.maxMarks||1),0);
+  const correctCount=detail.filter(d=>d.correct).length, wrongCount=detail.filter(d=>d.answer&&!d.correct).length, unansweredCount=detail.filter(d=>!d.answer).length;
+  const subjectStats=Object.values(detail.reduce((map,d)=>{const key=d.subject||'General';if(!map[key])map[key]={subject:key,totalQuestions:0,answered:0,correct:0,wrong:0,unanswered:0,score:0,totalMarks:0};const x=map[key];x.totalQuestions++;x.totalMarks+=Number(d.maxMarks||1);x.score+=Number(d.marks||0);if(!d.answer)x.unanswered++;else{x.answered++;if(d.correct)x.correct++;else x.wrong++;}return map;},{}));
+  const percent=totalMarks?Number(((score/totalMarks)*100).toFixed(2)):0;
+  const passPercent=Number(exam.passPercent||exam.passingPercentage||35);
+  const resultPayload={examId,accessId,studentCode:accessData.code||'',examCode:exam.examId||exam.examCode||'',examTitle:exam.title||'Exam',instituteName:exam.instituteName||exam.instituteCode||'KSR',instituteCode:exam.instituteCode||'',instituteId:exam.instituteId||'',batchId:exam.batchId||'',batchName:exam.batchName||'',name,phone,hall,answers:ans,review,score,total:totalMarks,totalQuestions:qs.length,correctCount,wrongCount,unansweredCount,percent,passPercent,status:percent>=passPercent?'Pass':'Fail',subjectStats,details:detail,autoSubmitted:auto,submittedAtLocal:Date.now()};
   try{
-    await setDoc(doc(db,'results',examId+'_'+accessId),{examId,accessId,studentCode:accessData.code||'',examCode:exam.examId||exam.examCode||'',instituteCode:exam.instituteCode||'',instituteId:exam.instituteId||'',batchId:exam.batchId||'',batchName:exam.batchName||'',name,phone,hall,answers:ans,review,score,total:qs.length,details:detail,submittedAt:serverTimestamp(),autoSubmitted:auto});
+    await setDoc(doc(db,'results',examId+'_'+accessId),{...resultPayload,submittedAt:serverTimestamp()});
+    await setDoc(doc(db,'leaderboard',examId+'_'+accessId),{examId,examTitle:resultPayload.examTitle,instituteCode:resultPayload.instituteCode,batchId:resultPayload.batchId,name,studentCode:resultPayload.studentCode,score,total:totalMarks,percent,submittedAt:serverTimestamp()});
     await setDoc(doc(db,'studentAccess',accessId),{...accessData,status:'completed',completedAt:serverTimestamp(),resultScore:score},{merge:true});
-    try{localStorage.removeItem(sessionKey())}catch(e){}
+    try{localStorage.removeItem(sessionKey());localStorage.setItem('ksrLastResult',JSON.stringify(resultPayload))}catch(e){}
     $('timeupModal').hidden=false;$('timeupModal').querySelector('h2').textContent='పరీక్ష Submit అయింది ✅';$('timeupModal').querySelector('p').textContent='మీ Answer Sheet PDF download అవుతోంది...';
     await downloadStudentAnswerSheet(score,detail);
-    setTimeout(()=>{location.href='result.html?score='+score+'&total='+qs.length+'&name='+encodeURIComponent(name)+'&code='+encodeURIComponent(exam.examId||exam.examCode||'')},700);
+    setTimeout(()=>{location.href='result.html?examId='+encodeURIComponent(examId)+'&access='+encodeURIComponent(accessId)},700);
   }catch(e){submitting=false;$('timeupModal').hidden=true;show('Submit error: '+e.message,'err');}
 }
 function applyQuestionShuffle(raw, examData, studentSeed){
