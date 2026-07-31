@@ -3,7 +3,7 @@ const ATTENDANCE_BACKUP_KEY='sriNidhiAttendanceV293';
 const LEGACY_DB_KEYS=['sriNidhiStudyHallV11','sriNidhiStudyHallV10','sriNidhiStudyHall','sriNidhiDB','studyHallDB'];
 const defaultDB={
  meta:{schemaVersion:2,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},
- settings:{hallName:'Sri Nidhi Study Hall',academicYear:'2026-27',phone:'',address:'',monthlyFee:1500,feeDueDay:10,adminUser:'admin',adminPass:'1234',autoBackupDays:7,firebaseConfig:'',firebaseSiteId:'sri-nidhi-main'},
+ settings:{hallName:'Sri Nidhi Study Hall',academicYear:'2026-27',phone:'',phonePeNumber:'',address:'',monthlyFee:1500,feeDueDay:10,adminUser:'admin',adminPass:'1234',autoBackupDays:7,firebaseConfig:'',firebaseSiteId:'sri-nidhi-main'},
  students:[
   {id:'SN0001',name:'Anusha',gender:'Female',dob:'',phone:'9876543210',parentName:'',parentPhone:'9123456780',emergencyPhone:'',address:'',course:'DSC',batch:'Morning',seat:'G-01',joinDate:'2026-07-01',monthlyFee:1500,idProof:'',status:'Active',photo:'',password:'1234'},
   {id:'SN0002',name:'Kavya',gender:'Female',dob:'',phone:'9876501234',parentName:'',parentPhone:'9012345678',emergencyPhone:'',address:'',course:'TET',batch:'Morning',seat:'G-02',joinDate:'2026-07-03',monthlyFee:1500,idProof:'',status:'Active',photo:'',password:'1234'},
@@ -288,7 +288,7 @@ window.restoreBackup=()=>{const f=el('restoreFile')?.files?.[0];if(!f)return ale
 window.runDataIntegrityCheck=()=>{v291NormalizeData();const known=new Set(db.students.map(s=>String(s.id))),orphanAttendance=db.attendance.filter(a=>!known.has(String(a.studentId))).length,orphanFees=db.fees.filter(f=>!known.has(String(f.studentId))).length,duplicateStudents=db.students.length-new Set(db.students.map(s=>String(s.id))).size;const ok=saveDB();alert(`Data Integrity Check\n\nStudents: ${db.students.length}\nAttendance: ${db.attendance.length}\nFees: ${db.fees.length}\nEntry/Exit: ${db.movements.length}\nDuplicate student IDs: ${duplicateStudents}\nOrphan attendance: ${orphanAttendance}\nOrphan fees: ${orphanFees}\nStorage verification: ${ok?'Passed':'Failed'}`)};
 function renderSettings(){const lastBackup=db.meta?.lastBackupAt?new Date(db.meta.lastBackupAt).toLocaleString('en-IN'):'Not created';el('pageContent').innerHTML=`
 <section class="settings-hero"><div><p>V3.0 RC</p><h1>Study Hall Settings</h1><span>Profile, fee defaults, security and data safety.</span></div><b>Schema v${db.meta?.schemaVersion||4}</b></section>
-<div class="card"><form id="settingsForm" class="form-grid"><div class="section-title">Study Hall Profile</div><div class="field"><label>Study Hall Name</label><input name="hallName" value="${esc(db.settings.hallName)}" required></div><div class="field"><label>Academic Year</label><input name="academicYear" value="${esc(db.settings.academicYear||'2026-27')}"></div><div class="field"><label>Contact Phone</label><input name="phone" inputmode="tel" value="${esc(db.settings.phone||'')}"></div><div class="field span-3"><label>Address</label><textarea name="address">${esc(db.settings.address||'')}</textarea></div><div class="section-title">Fee Defaults</div><div class="field"><label>Default Monthly Fee</label><input type="number" min="0" name="monthlyFee" value="${Number(db.settings.monthlyFee||0)}"></div><div class="field"><label>Monthly Fee Due Day</label><input type="number" min="1" max="28" name="feeDueDay" value="${Number(db.settings.feeDueDay||10)}"></div><div class="field"><label>Backup Reminder (days)</label><input type="number" min="1" max="90" name="autoBackupDays" value="${Number(db.settings.autoBackupDays||7)}"></div><div class="section-title">Admin Login</div><div class="field"><label>Admin Username</label><input name="adminUser" value="${esc(db.settings.adminUser)}" required></div><div class="field"><label>Admin Password</label><input type="password" name="adminPass" value="${esc(db.settings.adminPass)}" required></div><div class="span-3 actions"><button class="primary">Save Settings</button></div></form></div>
+<div class="card"><form id="settingsForm" class="form-grid"><div class="section-title">Study Hall Profile</div><div class="field"><label>Study Hall Name</label><input name="hallName" value="${esc(db.settings.hallName)}" required></div><div class="field"><label>Academic Year</label><input name="academicYear" value="${esc(db.settings.academicYear||'2026-27')}"></div><div class="field"><label>Contact Phone</label><input name="phone" inputmode="tel" value="${esc(db.settings.phone||'')}"></div><div class="field"><label>PhonePe Number</label><input name="phonePeNumber" inputmode="numeric" maxlength="10" value="${esc(db.settings.phonePeNumber||db.settings.phone||'')}" placeholder="10-digit PhonePe number"></div><div class="field span-3"><label>Address</label><textarea name="address">${esc(db.settings.address||'')}</textarea></div><div class="section-title">Fee Defaults</div><div class="field"><label>Default Monthly Fee</label><input type="number" min="0" name="monthlyFee" value="${Number(db.settings.monthlyFee||0)}"></div><div class="field"><label>Monthly Fee Due Day</label><input type="number" min="1" max="28" name="feeDueDay" value="${Number(db.settings.feeDueDay||10)}"></div><div class="field"><label>Backup Reminder (days)</label><input type="number" min="1" max="90" name="autoBackupDays" value="${Number(db.settings.autoBackupDays||7)}"></div><div class="section-title">Admin Login</div><div class="field"><label>Admin Username</label><input name="adminUser" value="${esc(db.settings.adminUser)}" required></div><div class="field"><label>Admin Password</label><input type="password" name="adminPass" value="${esc(db.settings.adminPass)}" required></div><div class="span-3 actions"><button class="primary">Save Settings</button></div></form></div>
 <div class="settings-data-grid"><div class="card"><h3>Backup Database</h3><p class="muted">Students, fees, attendance, movement, notices and settings.</p><button class="secondary" onclick="downloadBackup()">Download Verified Backup</button><small>Last backup: ${esc(lastBackup)}</small></div><div class="card"><h3>Restore Database</h3><p class="muted">Select a Sri Nidhi JSON backup. Current data will be replaced after confirmation.</p><input id="restoreFile" type="file" accept="application/json"><button class="secondary" onclick="restoreBackup()">Validate & Restore</button></div><div class="card"><h3>Data Integrity</h3><p class="muted">Normalize saved records and check duplicates/orphan records.</p><button class="secondary" onclick="runDataIntegrityCheck()">Run Integrity Check</button></div><div class="card danger-zone"><h3>Danger Zone</h3><p class="muted">Reset all local data to demo records.</p><button class="danger" onclick="resetDemo()">Reset Demo Data</button></div></div>`;el('settingsForm').onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target));o.monthlyFee=Math.max(0,Number(o.monthlyFee||0));o.feeDueDay=Math.min(28,Math.max(1,Number(o.feeDueDay||10)));o.autoBackupDays=Math.min(90,Math.max(1,Number(o.autoBackupDays||7)));db.settings={...db.settings,...o};logAction('settings','V3 settings updated');saveDB();alert('Settings saved successfully');render('dashboard')}}
 window.resetDemo=()=>{if(confirm('Reset all data?')){db=clone(defaultDB);saveDB();render('dashboard')}};
 window.render=render;
@@ -1666,16 +1666,19 @@ window.v41OpenAdmission=function(){
     <div class="field"><label>Father / Guardian Name *</label><input name="parentName" required></div>
     <div class="field"><label>Parent Mobile *</label><input name="parentPhone" inputmode="numeric" maxlength="10" required></div>
     <div class="field"><label>Course / Class *</label><input name="course" required></div>
+    <div class="field"><label>TET Score</label><input type="number" name="tetScore" min="0" step="0.01" placeholder=""></div>
     <div class="field"><label>Batch / Timing</label><input name="batch"></div>
     <div class="field"><label>Address</label><input name="address"></div>
 
     <div class="field span-3 v41-section-title">Admission Fee Payment</div>
     <div class="field"><label>Fee Month *</label><input type="month" name="month" value="${monthNow()}" required></div>
-    <div class="field"><label>Fee Amount *</label><input type="number" name="amount" value="${Number(db.settings.monthlyFee||0)}" min="1" required></div>
-    <div class="field"><label>Amount Paid *</label><input type="number" name="paid" value="${Number(db.settings.monthlyFee||0)}" min="1" required></div>
+    <div class="field"><label>Total Fees *</label><input type="number" name="amount" value="${Number(db.settings.monthlyFee||0)}" min="1" required oninput="v413CalcAdmissionFee()"></div>
+    <div class="field"><label>How Much Are You Paying? *</label><input type="number" name="paid" value="${Number(db.settings.monthlyFee||0)}" min="1" required oninput="v413CalcAdmissionFee()"></div>
+    <div class="field"><label>How Much Is Left?</label><input id="v413RemainingFee" type="number" value="0" readonly></div>
     <div class="field"><label>Payment Date *</label><input type="date" name="date" value="${today()}" required></div>
     <div class="field"><label>Payment Mode *</label><select name="mode"><option>UPI</option><option>Cash</option><option>Bank</option><option>Card</option></select></div>
     <div class="field"><label>Transaction ID / Reference</label><input name="reference"></div>
+    ${isManual?'':`<div class="span-3 v413-phonepe-box"><span>Pay with PhonePe</span><button type="button" class="v413-phonepe-link" onclick="v413OpenPhonePe()">${esc(v413PhonePeNumber()||'Add PhonePe number in Settings')}</button><small>Tap the number to open PhonePe directly</small></div>`}
     <div class="span-3"><button class="primary full">Confirm Admission & Download PDF</button></div>
   </form></div>`);
   el('v41AdmissionForm').onsubmit=v41SubmitAdmission;
@@ -1688,7 +1691,7 @@ function v41SubmitAdmission(e){
   if(phone.length!==10||parentPhone.length!==10)return alert('Mobile numbers 10 digits ఉండాలి.');
   if(paid<=0||amount<=0||paid>amount)return alert('Fee amount సరైనదిగా నమోదు చేయండి.');
   if(db.students.some(s=>digitsOnly(s.phone)===phone&&s.status!=='Inactive'))return alert('ఈ mobile numberతో student ఇప్పటికే ఉన్నారు.');
-  const s={id:v41AdmissionId(),password:v41Password(),admissionNo:v41AdmissionNo(),name:o.name.trim(),dob:o.dob||'',gender:o.gender||'',phone,parentName:o.parentName.trim(),parentPhone,address:o.address?.trim()||'',course:o.course.trim(),batch:o.batch?.trim()||'',monthlyFee:amount,joinDate:o.date,applicationDate:o.date,applicationStatus:'Admission Completed',admissionComplete:true,admissionCompletedAt:new Date().toISOString(),nextDueDate:v33DatePlusMonth(o.date),status:'Active',createdBy:'student-self-admission',createdAt:new Date().toISOString()};
+  const s={id:v41AdmissionId(),password:v41Password(),admissionNo:v41AdmissionNo(),name:o.name.trim(),dob:o.dob||'',gender:o.gender||'',phone,parentName:o.parentName.trim(),parentPhone,address:o.address?.trim()||'',course:o.course.trim(),tetScore:o.tetScore||'',batch:o.batch?.trim()||'',monthlyFee:amount,joinDate:o.date,applicationDate:o.date,applicationStatus:'Admission Completed',admissionComplete:true,admissionCompletedAt:new Date().toISOString(),nextDueDate:v33DatePlusMonth(o.date),status:'Active',createdBy:'student-self-admission',createdAt:new Date().toISOString()};
   const f={id:uid(),studentId:s.id,month:o.month,amount,paid,date:o.date,mode:o.mode,reference:o.reference||'',receipt:nextReceipt(),nextDueDate:s.nextDueDate,submittedBy:'admission-form',admissionPayment:true,createdAt:new Date().toISOString()};
   db.students.push(s);db.fees.push(f);logAction('admission_complete',`${s.name} admission completed (${s.admissionNo})`);saveDB();closeModal();v41AdmissionPdf(s,f);alert(`Admission Confirmed\nStudent ID: ${s.id}\nPassword: ${s.password}`);
 }
@@ -1698,7 +1701,7 @@ function v41AdmissionPdf(s,f){
   const {jsPDF}=window.jspdf,doc=new jsPDF();
   v35PdfHeader(doc,'ADMISSION CONFIRMATION',s.admissionNo);
   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Student Details',16,54);
-  let y=v35PdfRows(doc,[['Admission Number',s.admissionNo],['Student Name',s.name],['Date of Birth',s.dob||'-'],['Gender',s.gender||'-'],['Student Mobile',s.phone],['Parent / Guardian',s.parentName],['Parent Mobile',s.parentPhone],['Course / Class',s.course],['Batch / Timing',s.batch||'-'],['Admission Date',s.joinDate]],64);
+  let y=v35PdfRows(doc,[['Admission Number',s.admissionNo],['Student Name',s.name],['Date of Birth',s.dob||'-'],['Gender',s.gender||'-'],['Student Mobile',s.phone],['Parent / Guardian',s.parentName],['Parent Mobile',s.parentPhone],['Course / Class',s.course],['TET Score',s.tetScore||'-'],['Batch / Timing',s.batch||'-'],['Admission Date',s.joinDate]],64);
   doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Fee Receipt',16,y+3);y=v35PdfRows(doc,[['Receipt Number',f.receipt],['Fee Month',f.month],['Fee Amount',money(f.amount)],['Amount Paid',money(f.paid)],['Payment Date',f.date],['Payment Mode',f.mode],['Transaction / Reference',f.reference||'-'],['Next Due Date',s.nextDueDate]],y+13);
   doc.setFillColor(235,248,247);doc.roundedRect(16,y+2,178,29,3,3,'F');doc.setTextColor(15,103,98);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('STUDENT LOGIN',20,y+11);doc.setTextColor(31,49,48);doc.setFontSize(11);doc.text(`Student ID: ${s.id}`,20,y+20);doc.text(`Password: ${s.password}`,110,y+20);
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(110,130,128);doc.text('Admission confirmed and fee received.',105,286,{align:'center'});
@@ -1762,6 +1765,11 @@ v41Landing=function(){
 window.v41ShowChoices=function(){v41Landing()};
 
 /* Shared form: public admission allows online modes only; admin admission is manual. */
+function v413PhonePeNumber(){return digitsOnly(db.settings.phonePeNumber||db.settings.phone||'').slice(-10)}
+function v413PhonePeLink(){const n=v413PhonePeNumber();return n?`phonepe://pay?pa=${encodeURIComponent(n+'@ybl')}&pn=${encodeURIComponent(db.settings.hallName||'Sri Nidhi Study Hall')}&cu=INR`:''}
+window.v413OpenPhonePe=function(){const link=v413PhonePeLink();if(!link)return alert('Admin Settings లో PhonePe Number add చేయండి.');window.location.href=link}
+window.v413CalcAdmissionFee=function(){const f=el('v413AdmissionForm');if(!f)return;const total=Number(f.elements.amount?.value||0),paid=Number(f.elements.paid?.value||0),rem=el('v413RemainingFee');if(rem)rem.value=Math.max(0,total-paid)}
+
 function v413AdmissionForm(mode='online'){
   const isManual=mode==='manual';
   return `<div class="v41-admission"><h2>${isManual?'Manual Admission':'Admission Form'}</h2><form id="v413AdmissionForm" class="form-grid">
@@ -1774,26 +1782,29 @@ function v413AdmissionForm(mode='online'){
     <div class="field"><label>Father / Guardian Name *</label><input name="parentName" required></div>
     <div class="field"><label>Parent Mobile *</label><input name="parentPhone" inputmode="numeric" maxlength="10" required></div>
     <div class="field"><label>Course / Class *</label><input name="course" required></div>
+    <div class="field"><label>TET Score</label><input type="number" name="tetScore" min="0" step="0.01" placeholder=""></div>
     <div class="field"><label>Batch / Timing</label><input name="batch"></div>
     <div class="field"><label>Address</label><input name="address"></div>
     <div class="field span-3 v41-section-title">${isManual?'Manual Fee Payment':'Online Fee Payment'}</div>
     <div class="field"><label>Fee Month *</label><input type="month" name="month" value="${monthNow()}" required></div>
-    <div class="field"><label>Fee Amount *</label><input type="number" name="amount" value="${Number(db.settings.monthlyFee||0)}" min="1" required></div>
-    <div class="field"><label>Amount Paid *</label><input type="number" name="paid" value="${Number(db.settings.monthlyFee||0)}" min="1" required></div>
+    <div class="field"><label>Total Fees *</label><input type="number" name="amount" value="${Number(db.settings.monthlyFee||0)}" min="1" required oninput="v413CalcAdmissionFee()"></div>
+    <div class="field"><label>How Much Are You Paying? *</label><input type="number" name="paid" value="${Number(db.settings.monthlyFee||0)}" min="1" required oninput="v413CalcAdmissionFee()"></div>
+    <div class="field"><label>How Much Is Left?</label><input id="v413RemainingFee" type="number" value="0" readonly></div>
     <div class="field"><label>Payment Date *</label><input type="date" name="date" value="${today()}" required></div>
     <div class="field"><label>Payment Mode *</label><select name="paymentMode">${isManual?'<option>Cash</option><option>UPI</option><option>Bank</option>':'<option>UPI</option><option>Card</option><option>Net Banking</option>'}</select></div>
     <div class="field"><label>Transaction ID / Reference</label><input name="reference"></div>
+    ${isManual?'':`<div class="span-3 v413-phonepe-box"><span>Pay with PhonePe</span><button type="button" class="v413-phonepe-link" onclick="v413OpenPhonePe()">${esc(v413PhonePeNumber()||'Add PhonePe number in Settings')}</button><small>Tap the number to open PhonePe directly</small></div>`}
     <div class="span-3"><button class="primary full">${isManual?'Save Manual Admission & Download PDF':'Pay Online & Confirm Admission'}</button></div>
   </form></div>`;
 }
 
 window.v41OpenAdmission=function(){
   openModal(v413AdmissionForm('online'));
-  el('v413AdmissionForm').onsubmit=v413SubmitAdmission;
+  el('v413AdmissionForm').onsubmit=v413SubmitAdmission;v413CalcAdmissionFee();
 };
 window.v413OpenManualAdmission=function(){
   openModal(v413AdmissionForm('manual'));
-  el('v413AdmissionForm').onsubmit=v413SubmitAdmission;
+  el('v413AdmissionForm').onsubmit=v413SubmitAdmission;v413CalcAdmissionFee();
 };
 
 function v413SubmitAdmission(e){
@@ -1803,7 +1814,7 @@ function v413SubmitAdmission(e){
   if(phone.length!==10||parentPhone.length!==10)return alert('Mobile numbers 10 digits ఉండాలి.');
   if(paid<=0||amount<=0||paid>amount)return alert('Fee amount సరైనదిగా నమోదు చేయండి.');
   if(db.students.some(s=>digitsOnly(s.phone)===phone&&s.status!=='Inactive'))return alert('ఈ mobile numberతో student ఇప్పటికే ఉన్నారు.');
-  const s={id:v41AdmissionId(),password:v41Password(),admissionNo:v41AdmissionNo(),name:o.name.trim(),dob:o.dob||'',gender:o.gender||'',phone,parentName:o.parentName.trim(),parentPhone,address:o.address?.trim()||'',course:o.course.trim(),batch:o.batch?.trim()||'',monthlyFee:amount,joinDate:o.date,applicationDate:o.date,applicationStatus:isManual?'Approved':'Awaiting Admin Approval',admissionComplete:true,adminApproved:isManual,approvedAt:isManual?new Date().toISOString():'',admissionCompletedAt:new Date().toISOString(),nextDueDate:v33DatePlusMonth(o.date),status:'Active',createdBy:isManual?'admin-manual-admission':'student-online-admission',createdAt:new Date().toISOString()};
+  const s={id:v41AdmissionId(),password:v41Password(),admissionNo:v41AdmissionNo(),name:o.name.trim(),dob:o.dob||'',gender:o.gender||'',phone,parentName:o.parentName.trim(),parentPhone,address:o.address?.trim()||'',course:o.course.trim(),tetScore:o.tetScore||'',batch:o.batch?.trim()||'',monthlyFee:amount,joinDate:o.date,applicationDate:o.date,applicationStatus:isManual?'Approved':'Awaiting Admin Approval',admissionComplete:true,adminApproved:isManual,approvedAt:isManual?new Date().toISOString():'',admissionCompletedAt:new Date().toISOString(),nextDueDate:v33DatePlusMonth(o.date),status:'Active',createdBy:isManual?'admin-manual-admission':'student-online-admission',createdAt:new Date().toISOString()};
   const f={id:uid(),studentId:s.id,month:o.month,amount,paid,date:o.date,mode:o.paymentMode,reference:o.reference||'',receipt:nextReceipt(),nextDueDate:s.nextDueDate,submittedBy:isManual?'admin-manual-admission':'online-admission',admissionPayment:true,createdAt:new Date().toISOString()};
   db.students.push(s);db.fees.push(f);logAction(isManual?'manual_admission':'online_admission',`${s.name} admission submitted (${s.admissionNo})`);saveDB();closeModal();v41AdmissionPdf(s,f);
   alert(isManual?`Admission Approved\nStudent ID: ${s.id}\nPassword: ${s.password}`:`Admission completed and sent for admin approval.\nStudent ID: ${s.id}\nPassword: ${s.password}`);
