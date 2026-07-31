@@ -1,8 +1,9 @@
 (function(){
 'use strict';
 let cloud={ready:false,loading:false,db:null,unsub:null,pushTimer:null,lastRemoteAt:0};
+const BUILTIN_FIREBASE_CONFIG={"apiKey":"AIzaSyCTOVWvbTE4vlz8Upi4IZXS_ioIPxIqWSM","authDomain":"sri-nidhi-studyhall.firebaseapp.com","projectId":"sri-nidhi-studyhall","storageBucket":"sri-nidhi-studyhall.firebasestorage.app","messagingSenderId":"797410314558","appId":"1:797410314558:web:9769c899f05cc1a6e1046f","measurementId":"G-DPEL0BH4W6"};
 const statusText=()=>cloud.ready?'Connected':'Not connected';
-function parseConfig(){try{const raw=db?.settings?.firebaseConfig||localStorage.getItem('sriNidhiFirebaseConfig')||'';return raw?JSON.parse(raw):null}catch{return null}}
+function parseConfig(){try{const raw=db?.settings?.firebaseConfig||localStorage.getItem('sriNidhiFirebaseConfig')||'';return raw?JSON.parse(raw):BUILTIN_FIREBASE_CONFIG}catch{return BUILTIN_FIREBASE_CONFIG}}
 function siteId(){return String(db?.settings?.firebaseSiteId||'sri-nidhi-main').trim().replace(/[^a-zA-Z0-9_-]/g,'-')||'sri-nidhi-main'}
 async function importFirebase(){
  const [app,auth,fs]=await Promise.all([
@@ -21,7 +22,8 @@ async function initCloud(force=false){
  try{
   if(cloud.unsub){cloud.unsub();cloud.unsub=null}
   const {app,auth,fs}=await importFirebase();
-  const firebaseApp=app.getApps().length?app.getApp():app.initializeApp(cfg);
+  const existing=app.getApps().find(x=>x.options?.projectId===cfg.projectId);
+  const firebaseApp=existing||app.initializeApp(cfg,`sri-nidhi-${cfg.projectId}`);
   const a=auth.getAuth(firebaseApp);await auth.signInAnonymously(a);
   const fdb=fs.getFirestore(firebaseApp);cloud.db=fdb;
   const ref=fs.doc(fdb,'studyHalls',siteId());

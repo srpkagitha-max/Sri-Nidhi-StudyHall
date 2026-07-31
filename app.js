@@ -3,7 +3,7 @@ const ATTENDANCE_BACKUP_KEY='sriNidhiAttendanceV293';
 const LEGACY_DB_KEYS=['sriNidhiStudyHallV11','sriNidhiStudyHallV10','sriNidhiStudyHall','sriNidhiDB','studyHallDB'];
 const defaultDB={
  meta:{schemaVersion:2,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},
- settings:{hallName:'Sri Nidhi Study Hall',academicYear:'2026-27',phone:'',phonePeNumber:'',address:'',monthlyFee:1500,feeDueDay:10,adminUser:'admin',adminPass:'1234',autoBackupDays:7,firebaseConfig:'',firebaseSiteId:'sri-nidhi-main'},
+ settings:{hallName:'Sri Nidhi Study Hall',academicYear:'2026-27',phone:'',phonePeNumber:'',address:'',monthlyFee:1500,feeDueDay:10,adminUser:'admin',adminPass:'1234',autoBackupDays:7,firebaseConfig:'{"apiKey":"AIzaSyCTOVWvbTE4vlz8Upi4IZXS_ioIPxIqWSM","authDomain":"sri-nidhi-studyhall.firebaseapp.com","projectId":"sri-nidhi-studyhall","storageBucket":"sri-nidhi-studyhall.firebasestorage.app","messagingSenderId":"797410314558","appId":"1:797410314558:web:9769c899f05cc1a6e1046f","measurementId":"G-DPEL0BH4W6"}',firebaseSiteId:'sri-nidhi-main'},
  students:[
   {id:'SN0001',name:'Anusha',gender:'Female',dob:'',phone:'9876543210',parentName:'',parentPhone:'9123456780',emergencyPhone:'',address:'',course:'DSC',batch:'Morning',seat:'G-01',joinDate:'2026-07-01',monthlyFee:1500,idProof:'',status:'Active',photo:'',password:'1234'},
   {id:'SN0002',name:'Kavya',gender:'Female',dob:'',phone:'9876501234',parentName:'',parentPhone:'9012345678',emergencyPhone:'',address:'',course:'TET',batch:'Morning',seat:'G-02',joinDate:'2026-07-03',monthlyFee:1500,idProof:'',status:'Active',photo:'',password:'1234'},
@@ -52,6 +52,8 @@ function loadDB(){
   const raw=localStorage.getItem(DB_KEY);let data=raw?JSON.parse(raw):clone(defaultDB),migrated=[];
   data.meta=data.meta||{schemaVersion:2,createdAt:new Date().toISOString()};
   data.settings={...clone(defaultDB.settings),...(data.settings||{})};
+  if(!data.settings.firebaseConfig)data.settings.firebaseConfig=defaultDB.settings.firebaseConfig;
+  if(!data.settings.firebaseSiteId)data.settings.firebaseSiteId='sri-nidhi-main';
   const direct=extractLegacyCollections(data);
   for(const key of ['students','fees','attendance','movements','audit','notices','diary'])data[key]=direct[key];
   for(const legacyKey of LEGACY_DB_KEYS){
