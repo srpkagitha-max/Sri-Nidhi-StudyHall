@@ -1,7 +1,8 @@
 {
   "name": "Sri Nidhi Study Hall - Admin & Student",
   "short_name": "Sri Nidhi",
-  "start_url": "./?v=401",
+  "id": "./",
+  "start_url": "./?v=430",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f8f8",

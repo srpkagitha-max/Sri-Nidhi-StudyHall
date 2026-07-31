@@ -5,13 +5,27 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0f7f7a" />
   <title>Sri Nidhi Study Hall</title>
-  <link rel="stylesheet" href="style.css?v=4.2.0" />
+  <link rel="stylesheet" href="style.css?v=4.3.0" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="favicon.png?v=2.5.0" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2.5.0" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
+  
+  <!-- PWA install invitation: shown only when installation is useful -->
+  <div id="pwaInstallCard" class="pwa-install-card hidden" role="dialog" aria-modal="true" aria-labelledby="pwaInstallTitle">
+    <button id="pwaInstallClose" class="pwa-install-close" type="button" aria-label="Close">×</button>
+    <div class="pwa-install-logo">SN</div>
+    <div class="pwa-install-copy">
+      <h2 id="pwaInstallTitle">Install Sri Nidhi Study Hall</h2>
+      <p id="pwaInstallText">Fast access kosam app ni mee phone Home Screen lo install cheyandi.</p>
+    </div>
+    <button id="pwaInstallBtn" class="pwa-install-button" type="button">Install App</button>
+    <button id="pwaInstallLater" class="pwa-install-later" type="button">Later</button>
+  </div>
+  <div id="pwaInstallBackdrop" class="pwa-install-backdrop hidden"></div>
+
   <section id="loginView" class="login-wrap exam-login-wrap">
     <div class="exam-login-shell">
       <header class="exam-login-header">
@@ -85,9 +99,10 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs"; window.pdfjsLib=pdfjsLib;</script>
-<script src="app.js?v=4.2.0"></script>
-<script src="cloud-sync.js?v=4.2.0"></script>
-  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=4.1.2", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
-<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v4.1.3</div>
+<script src="pwa-install.js?v=4.3.0"></script>
+<script src="app.js?v=4.3.0"></script>
+<script src="cloud-sync.js?v=4.3.0"></script>
+  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js?v=4.3.0", {updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}</script>
+<div style="position:fixed;right:8px;bottom:8px;z-index:9999;font:700 10px system-ui;color:#0b6662;background:rgba(255,255,255,.9);padding:4px 7px;border-radius:8px;border:1px solid #e2e8f0">v4.3.0</div>
 </body>
 </html>
