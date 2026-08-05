@@ -2153,3 +2153,53 @@ renderAttendance=function(){
 window.v416DownloadTiffinPDF=function(){const date=el('v416TiffinDate')?.value||v416Tomorrow(),rows=db.tiffinAttendance.filter(x=>x.date===date);if(!rows.length)return alert('Tiffin attendance list empty.');if(!window.jspdf)return alert('PDF library load కాలేదు.');const {jsPDF}=window.jspdf,doc=new jsPDF();v35PdfHeader(doc,'TIFFIN ATTENDANCE',date);let y=55;rows.forEach((a,i)=>{const s=db.students.find(x=>x.id===a.studentId)||{};doc.text(`${i+1}. ${s.admissionNo||'-'} | ${a.studentId} | ${s.name||a.studentId} | ${s.batch||'-'}`,16,y);y+=7;if(y>280){doc.addPage();y=18}});doc.setFont('helvetica','bold');doc.text(`Total Tiffin Count: ${rows.length}`,16,y+6);v33SavePdf(doc,`Tiffin-Attendance-${date}.pdf`)};
 
 db.meta.schemaVersion=11;db.meta.appVersion=V416_VERSION;saveDB();
+
+
+/* =========================================================
+   V4.1.7 — Mobile-only approval lookup + Admin summary cards
+   ========================================================= */
+const V417_VERSION='4.1.7';
+
+/* Applicant checks approval using only the registered mobile number. */
+function v416StatusPanel(){return `<section class="v416-status-panel"><h3>Check Admission Approval</h3><p class="muted">Admission form lo ichina registered mobile number enter చేయండి.</p><div class="form-grid"><div class="field span-2"><label>Student Mobile Number</label><input id="v416StatusPhone" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number"></div><div class="field v416-status-action"><button type="button" class="secondary full" onclick="v416CheckAdmissionStatus()">Check Status</button></div></div><div id="v416StatusResult"></div></section>`}
+window.v416CheckAdmissionStatus=function(){
+  const phone=digitsOnly(el('v416StatusPhone')?.value||''),box=el('v416StatusResult');
+  if(phone.length!==10)return alert('10-digit registered mobile number enter చేయండి.');
+  const matches=db.students.filter(x=>digitsOnly(x.phone)===phone||digitsOnly(x.parentPhone)===phone)
+    .sort((a,b)=>String(b.approvedAt||b.createdAt||'').localeCompare(String(a.approvedAt||a.createdAt||'')));
+  const s=matches[0];
+  if(!s){box.innerHTML='<div class="v416-status error">Ee mobile number tho admission details dorakaledu.</div>';return}
+  if(!s.adminApproved){box.innerHTML='<div class="v416-status pending"><b>Admin Approval Pending</b><span>Payment verification పూర్తయ్యాక ఇక్కడ PDF download option వస్తుంది.</span></div>';return}
+  const f=[...db.fees].reverse().find(x=>x.studentId===s.id&&x.admissionPayment);
+  box.innerHTML=`<div class="v416-status success"><b>Admin Approval Completed</b><span>Your admission is approved. Download your complete admission PDF.</span><button class="primary full" onclick="v41AdmissionPdf(db.students.find(x=>x.id==='${s.id}'),db.fees.find(x=>x.id==='${f?.id||''}'))">Download Your PDF</button></div>`
+};
+
+/* Clean admin home summary with Expenses as a first-class card. */
+renderDashboard=function(){
+  const active=db.students.filter(s=>s.status!=='Inactive'&&s.adminApproved===true);
+  const pending=db.students.filter(s=>s.status!=='Inactive'&&s.adminApproved!==true&&(s.paymentVerificationPending===true||s.admissionComplete===true||s.applicationStatus));
+  const collected=db.fees.filter(f=>localISODate(f.date)===today()).reduce((n,f)=>n+Number(f.paid||0),0);
+  const expenses=(db.expenses||[]).filter(x=>x.date===today()).reduce((n,x)=>n+Number(x.amount||0),0);
+  const tomorrow=v416Tomorrow();
+  const tiffin=(db.tiffinAttendance||[]).filter(x=>x.date===tomorrow).length;
+  const outside=db.movements.filter(m=>v291NormalizeStatus(m.status,'movement')==='Outside');
+  const recent=[
+    ...db.fees.slice(-4).map(f=>({time:f.createdAt||f.date,text:`Fee paid: ${db.students.find(s=>s.id===f.studentId)?.name||f.studentId} — ${money(f.paid)}`,page:'fees'})),
+    ...(db.expenses||[]).slice(-4).map(x=>({time:x.createdAt||x.date,text:`Expense: ${x.category} — ${money(x.amount)}`,page:'expenses'})),
+    ...db.students.slice(-4).map(s=>({time:s.createdAt||s.joinDate,text:`Admission: ${s.name}`,page:'admissions'}))
+  ].sort((a,b)=>String(b.time||'').localeCompare(String(a.time||''))).slice(0,6);
+  el('pageContent').innerHTML=`<section class="v35-welcome"><div><small>ADMIN DASHBOARD</small><h1>${esc(db.settings.hallName)}</h1><p>${esc(db.settings.academicYear||'')} • Daily management summary</p></div><button class="v35-settings" onclick="render('settings')">⚙ Settings</button></section>
+  <section class="v35-metrics clean-v35-metrics">
+    ${v35Metric('Total Students',active.length,'students')}
+    ${v35Metric('Pending Admissions',pending.length,'admissions')}
+    ${v35Metric('Today Collection',money(collected),'fees')}
+    ${v35Metric('Today Expenses',money(expenses),'expenses')}
+    ${v35Metric('Tomorrow Tiffin',tiffin,'attendance')}
+    ${v35Metric('Currently Outside',outside.length,'movement')}
+  </section>
+  <section class="card v35-recent clean-recent"><div class="v35-section-title"><div><small>RECENT ACTIVITY</small><h2>Latest Updates</h2></div></div>${recent.length?recent.map(r=>`<button onclick="render('${r.page}')"><span>${esc(r.text)}</span><small>${esc(fmtDateTime(r.time))}</small></button>`).join(''):'<div class="empty">No recent activity.</div>'}</section>`
+};
+
+/* Update visible build badge. */
+(function(){const badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.1\./.test(x.textContent||''));if(badge)badge.textContent='v4.1.7';})();
+db.meta.schemaVersion=12;db.meta.appVersion=V417_VERSION;saveDB();

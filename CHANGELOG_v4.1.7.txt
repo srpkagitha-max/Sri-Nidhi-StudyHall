@@ -1,0 +1,7 @@
+Sri Nidhi Study Hall v4.1.7
+
+- Approval status check now uses registered mobile number only.
+- Application Reference field removed.
+- Admin home now shows six summary cards: Total Students, Pending Admissions, Today Collection, Today Expenses, Tomorrow Tiffin, Currently Outside.
+- Expenses card opens the Expenses module.
+- Cache version updated to v4.1.7.

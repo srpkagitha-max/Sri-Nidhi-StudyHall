@@ -1,4 +1,4 @@
-const CACHE="sri-nidhi-v4.1.5-option1";
+const CACHE="sri-nidhi-v4.1.7";
 const ASSETS=["./","./index.html","./style.css?v=4.1.5-option1","./pwa-install.js?v=4.1.5-option1","./app.js?v=4.1.5-option1","./cloud-sync.js?v=4.1.5-option1","./manifest.json","./icon.svg","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./favicon.png"];
 self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener("activate",e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k!==CACHE)await caches.delete(k);await self.clients.claim()})()));
