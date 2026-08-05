@@ -1,0 +1,5 @@
+Sri Nidhi Study Hall v4.1.6
+- Admin Expenses: today, week, month totals; monthly search/list; PDF download.
+- Admission approval status lookup; approved applicants can download complete Admission PDF.
+- Separate Study Hall Daily Attendance and Tiffin Attendance.
+- Tomorrow tiffin submission closes at 11:00 PM on the previous night.

@@ -2067,3 +2067,89 @@ for(const s of db.students){
 }
 db.meta.schemaVersion=10;saveDB();
 const v415Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.3\.0|v4\.1\.4|v4\.1\.3/.test(x.textContent||''));if(v415Badge)v415Badge.textContent='v4.1.5 Option 1';
+
+/* =====================================================================
+   V4.1.6 — Expenses + Admission approval PDF retrieval + Tiffin Attendance
+   ===================================================================== */
+const V416_VERSION='4.1.6';
+if(!Array.isArray(db.expenses))db.expenses=[];
+if(!Array.isArray(db.tiffinAttendance))db.tiffinAttendance=[];
+
+function v416Tomorrow(){const d=new Date();d.setDate(d.getDate()+1);return localISODate(d)}
+function v416StartOfWeek(dateStr=today()){
+  const d=new Date(`${dateStr}T00:00:00`),day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return localISODate(d)
+}
+function v416ExpenseTotal(rows){return rows.reduce((sum,x)=>sum+Number(x.amount||0),0)}
+function v416ExpenseRowsForMonth(month){return db.expenses.filter(x=>String(x.date||'').startsWith(month)).sort((a,b)=>String(b.date).localeCompare(String(a.date)))}
+
+function renderExpenses(){
+  const t=today(),weekStart=v416StartOfWeek(t),month=t.slice(0,7);
+  const todayRows=db.expenses.filter(x=>x.date===t),weekRows=db.expenses.filter(x=>x.date>=weekStart&&x.date<=t),monthRows=v416ExpenseRowsForMonth(month);
+  el('pageContent').innerHTML=`
+  <section class="expense-kpis">
+    <div><small>Today</small><b>${money(v416ExpenseTotal(todayRows))}</b></div>
+    <div><small>This Week</small><b>${money(v416ExpenseTotal(weekRows))}</b></div>
+    <div><small>This Month</small><b>${money(v416ExpenseTotal(monthRows))}</b></div>
+  </section>
+  <section class="card"><h3>Add Expense</h3><form id="v416ExpenseForm" class="form-grid">
+    <div class="field"><label>Date *</label><input type="date" name="date" value="${t}" required></div>
+    <div class="field"><label>Category *</label><input name="category" placeholder="Rent / Electricity / Tiffin / Other" required></div>
+    <div class="field"><label>Amount *</label><input type="number" name="amount" min="1" step="0.01" required></div>
+    <div class="field"><label>Payment Mode</label><select name="mode"><option>Cash</option><option>UPI</option><option>Bank</option><option>Other</option></select></div>
+    <div class="field span-2"><label>Details</label><input name="details" placeholder="Expense details"></div>
+    <div class="span-3"><button class="primary full">Save Expense</button></div>
+  </form></section>
+  <section class="card"><div class="card-heading-row"><div><h3>Monthly Expenses</h3><p class="muted">Month select చేసి PDF download చేయండి.</p></div><div class="v416-expense-tools"><input id="v416ExpenseMonth" type="month" value="${month}"><button class="primary" onclick="v416DownloadExpensePDF()">Download PDF</button></div></div><div id="v416ExpenseList"></div></section>`;
+  el('v416ExpenseForm').onsubmit=e=>{e.preventDefault();const o=Object.fromEntries(new FormData(e.target));const amount=Number(o.amount||0);if(amount<=0)return alert('Valid expense amount enter చేయండి.');db.expenses.push({id:uid(),date:o.date,category:o.category.trim(),amount,mode:o.mode,details:o.details?.trim()||'',createdAt:new Date().toISOString()});logAction('expense_added',`${o.category} - ${money(amount)}`);saveDB();renderExpenses()};
+  el('v416ExpenseMonth').onchange=v416DrawExpenseMonth;v416DrawExpenseMonth();
+}
+window.v416DrawExpenseMonth=function(){const month=el('v416ExpenseMonth')?.value||monthNow(),rows=v416ExpenseRowsForMonth(month),box=el('v416ExpenseList');if(!box)return;box.innerHTML=rows.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Details</th><th>Mode</th><th>Amount</th><th></th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.category)}</td><td>${esc(x.details||'-')}</td><td>${esc(x.mode||'-')}</td><td>${money(x.amount)}</td><td><button class="danger" onclick="v416DeleteExpense('${x.id}')">Delete</button></td></tr>`).join('')}</tbody><tfoot><tr><th colspan="4">Total</th><th>${money(v416ExpenseTotal(rows))}</th><th></th></tr></tfoot></table></div>`:'<div class="empty">No expenses for this month.</div>'};
+window.v416DeleteExpense=function(id){const x=db.expenses.find(v=>v.id===id);if(!x||!confirm(`Delete ${x.category} expense?`))return;db.expenses=db.expenses.filter(v=>v.id!==id);saveDB();v416DrawExpenseMonth()};
+window.v416DownloadExpensePDF=function(){const month=el('v416ExpenseMonth')?.value||monthNow(),rows=v416ExpenseRowsForMonth(month);if(!rows.length)return alert('Selected month lo expenses levu.');if(!window.jspdf)return alert('PDF library load కాలేదు.');const {jsPDF}=window.jspdf,doc=new jsPDF();v35PdfHeader(doc,'MONTHLY EXPENSES',month);doc.setFontSize(10);let y=55;rows.forEach((x,i)=>{doc.text(`${i+1}. ${x.date} | ${x.category} | ${x.mode||'-'} | ${money(x.amount)}`,16,y);y+=7;if(x.details){doc.setFontSize(8);doc.text(`   ${String(x.details).slice(0,90)}`,16,y);doc.setFontSize(10);y+=6}if(y>278){doc.addPage();y=18}});doc.setFont('helvetica','bold');doc.text(`Total Expenses: ${money(v416ExpenseTotal(rows))}`,16,y+5);v33SavePdf(doc,`Expenses-${month}.pdf`)};
+
+/* Add Expenses to admin navigation and support its route without disturbing existing pages. */
+const v416PreviousRender=render;
+render=function(page,pushHistory=true){
+  if(page==='expenses'){
+    currentPage='expenses';document.querySelectorAll('#navMenu button').forEach(b=>b.classList.toggle('active',b.dataset.page==='expenses'));
+    if(el('pageTitle'))el('pageTitle').textContent='Expenses';if(pushHistory&&page!==history.state?.page)history.pushState({page},'',location.href);renderExpenses();return;
+  }
+  return v416PreviousRender(page,pushHistory);
+};
+(function v416AddExpensesNav(){const menu=el('navMenu');if(!menu||menu.querySelector('[data-page="expenses"]'))return;const b=document.createElement('button');b.dataset.page='expenses';b.innerHTML='<span>💸</span> Expenses';b.onclick=()=>render('expenses');const settings=menu.querySelector('[data-page="settings"]');menu.insertBefore(b,settings||null)})();
+
+/* Public application status lookup. After admin approval, applicant can download the complete admission PDF. */
+function v416StatusPanel(){return `<section class="v416-status-panel"><h3>Check Admission Approval</h3><p class="muted">Application Reference మరియు registered mobile number enter చేయండి.</p><div class="form-grid"><div class="field"><label>Application Reference</label><input id="v416StatusRef" placeholder="APP-..."></div><div class="field"><label>Student Mobile</label><input id="v416StatusPhone" inputmode="numeric" maxlength="10"></div><div class="field v416-status-action"><button type="button" class="secondary full" onclick="v416CheckAdmissionStatus()">Check Status</button></div></div><div id="v416StatusResult"></div></section>`}
+const v416OldPublicForm=v415PublicAdmissionForm;
+v415PublicAdmissionForm=function(){return v416OldPublicForm()+v416StatusPanel()};
+window.v416CheckAdmissionStatus=function(){const ref=(el('v416StatusRef')?.value||'').trim().toUpperCase(),phone=digitsOnly(el('v416StatusPhone')?.value||''),box=el('v416StatusResult');if(!ref||phone.length!==10)return alert('Application Reference and 10-digit mobile enter చేయండి.');const s=db.students.find(x=>String(x.applicationRef||'').toUpperCase()===ref&&digitsOnly(x.phone)===phone);if(!s){box.innerHTML='<div class="v416-status error">Application details dorakaledu.</div>';return}if(!s.adminApproved){box.innerHTML='<div class="v416-status pending"><b>Admin Approval Pending</b><span>Payment verification పూర్తయ్యాక ఇక్కడ PDF download option వస్తుంది.</span></div>';return}const f=db.fees.find(x=>x.studentId===s.id&&x.admissionPayment);box.innerHTML=`<div class="v416-status success"><b>Admin Approval Completed</b><span>Your admission is approved. Download your complete admission PDF.</span><button class="primary full" onclick="v41AdmissionPdf(db.students.find(x=>x.id==='${s.id}'),db.fees.find(x=>x.id==='${f?.id||''}'))">Download Your PDF</button></div>`};
+
+/* Tiffin attendance: student submits today before 11 PM for tomorrow morning. */
+function v416TiffinRecord(studentId,date){return db.tiffinAttendance.find(x=>x.studentId===studentId&&x.date===date)}
+function v416TiffinOpen(){return new Date().getHours()<23}
+window.submitTiffinAttendance=function(){const s=activeStudent();if(!s)return;if(!v416TiffinOpen())return alert('Tomorrow morning tiffin attendance submission night 11:00 PM ki close అయ్యింది.');const date=v416Tomorrow();db.tiffinAttendance=db.tiffinAttendance.filter(x=>!(x.studentId===s.id&&x.date===date));db.tiffinAttendance.push({id:uid(),studentId:s.id,date,status:'Tiffin Required',submittedAt:new Date().toISOString(),time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),source:'student-tiffin-attendance'});logAction('tiffin_attendance',`${s.name} submitted tiffin attendance for ${date}`);saveDB();renderStudentPage('attendance')};
+window.cancelTiffinAttendance=function(){const s=activeStudent();if(!s)return;if(!v416TiffinOpen())return alert('Submission closed at 11:00 PM.');const date=v416Tomorrow();db.tiffinAttendance=db.tiffinAttendance.filter(x=>!(x.studentId===s.id&&x.date===date));saveDB();renderStudentPage('attendance')};
+
+const v416PreviousStudentPage=renderStudentPage;
+renderStudentPage=function(page='overview'){
+  if(page!=='attendance')return v416PreviousStudentPage(page);
+  const s=activeStudent();if(!s)return v416PreviousStudentPage(page);
+  v416PreviousStudentPage(page);
+  const root=el('studentPageContent');if(!root)return;
+  const tomorrow=v416Tomorrow(),rec=v416TiffinRecord(s.id,tomorrow),open=v416TiffinOpen();
+  const tiffin=`<div class="card v416-tiffin-card"><div><small>TIFFIN ATTENDANCE</small><h3>Tomorrow Morning Tiffin</h3><p class="muted">${tomorrow} morning tiffin కావాలంటే today night 11:00 PM లోపు submit చేయండి.</p></div>${rec?`<div class="self-success">✓ Tiffin attendance submitted at <b>${esc(rec.time||'-')}</b></div>${open?'<button class="secondary full" onclick="cancelTiffinAttendance()">Cancel Tiffin Attendance</button>':''}`:open?'<button class="primary full big-action" onclick="submitTiffinAttendance()">Submit Tomorrow Tiffin Attendance</button>':'<div class="v416-closed">Submission Closed at 11:00 PM</div>'}</div>`;
+  root.insertAdjacentHTML('afterbegin',tiffin);
+};
+
+/* Admin Attendance page: Daily Study Hall attendance + Tiffin attendance. */
+const v416OldRenderAttendance=renderAttendance;
+renderAttendance=function(){
+  const d=window._attendanceDate||today(),daily=db.attendance.filter(a=>localISODate(a.date)===d&&a.source==='student-self-attendance').sort((a,b)=>String(a.time).localeCompare(String(b.time))),tiffinDate=window._tiffinDate||v416Tomorrow(),tiffin=db.tiffinAttendance.filter(a=>a.date===tiffinDate).sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+  el('pageContent').innerHTML=`<div class="attendance-stats"><div><small>Study Hall Attendance</small><b>${daily.length}</b></div><div><small>Tiffin Attendance</small><b>${tiffin.length}</b></div></div>
+  <section class="card"><div class="card-heading-row"><div><h3>Study Hall Daily Attendance</h3><p class="muted">Students submitted daily attendance.</p></div><input id="attendanceDate" type="date" value="${d}"></div>${daily.length?`<div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Name</th><th>Batch</th><th>Time</th><th>Status</th></tr></thead><tbody>${daily.map(a=>{const s=db.students.find(x=>x.id===a.studentId)||{};return `<tr><td>${esc(a.studentId)}</td><td>${esc(s.name||a.studentId)}</td><td>${esc(s.batch||'-')}</td><td>${esc(a.time||'-')}</td><td><span class="badge present">Present</span></td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">No daily attendance submissions.</div>'}</section>
+  <section class="card"><div class="card-heading-row"><div><h3>Tiffin Attendance</h3><p class="muted">Selected morning tiffin list. Previous night 11 PM submission closes.</p></div><div class="v416-tiffin-tools"><input id="v416TiffinDate" type="date" value="${tiffinDate}"><button class="primary" onclick="v416DownloadTiffinPDF()">PDF</button></div></div>${tiffin.length?`<div class="table-wrap"><table><thead><tr><th>#</th><th>Admission No</th><th>Student ID</th><th>Name</th><th>Batch</th><th>Submitted Time</th></tr></thead><tbody>${tiffin.map((a,i)=>{const s=db.students.find(x=>x.id===a.studentId)||{};return `<tr><td>${i+1}</td><td>${esc(s.admissionNo||'-')}</td><td>${esc(a.studentId)}</td><td>${esc(s.name||a.studentId)}</td><td>${esc(s.batch||'-')}</td><td>${esc(a.time||'-')}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">No tiffin attendance for this date.</div>'}</section>`;
+  el('attendanceDate').onchange=e=>{window._attendanceDate=e.target.value;renderAttendance()};el('v416TiffinDate').onchange=e=>{window._tiffinDate=e.target.value;renderAttendance()};
+};
+window.v416DownloadTiffinPDF=function(){const date=el('v416TiffinDate')?.value||v416Tomorrow(),rows=db.tiffinAttendance.filter(x=>x.date===date);if(!rows.length)return alert('Tiffin attendance list empty.');if(!window.jspdf)return alert('PDF library load కాలేదు.');const {jsPDF}=window.jspdf,doc=new jsPDF();v35PdfHeader(doc,'TIFFIN ATTENDANCE',date);let y=55;rows.forEach((a,i)=>{const s=db.students.find(x=>x.id===a.studentId)||{};doc.text(`${i+1}. ${s.admissionNo||'-'} | ${a.studentId} | ${s.name||a.studentId} | ${s.batch||'-'}`,16,y);y+=7;if(y>280){doc.addPage();y=18}});doc.setFont('helvetica','bold');doc.text(`Total Tiffin Count: ${rows.length}`,16,y+6);v33SavePdf(doc,`Tiffin-Attendance-${date}.pdf`)};
+
+db.meta.schemaVersion=11;db.meta.appVersion=V416_VERSION;saveDB();
