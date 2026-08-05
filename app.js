@@ -1911,3 +1911,159 @@ setTimeout(()=>{
   }
 },250);
 const v414Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.1\.3|v4\.1\.2/.test(x.textContent||''));if(v414Badge)v414Badge.textContent='v4.1.4';
+
+/* =====================================================================
+   V4.1.5 OPTION 1 — UPI exact-amount deep link + admin UTR verification
+   Public admission does NOT generate login credentials or PDF until the
+   admin verifies the UPI transaction reference and expected amount.
+   ===================================================================== */
+const V415_UPI_ID='9390856544@ybl';
+const V415_VERSION='4.1.5-option1';
+const v415OriginalAdmissionSubmit=typeof v413SubmitAdmission==='function'?v413SubmitAdmission:null;
+
+function v415ApplicationRef(){
+  let n=1,ref='';
+  do{ref=`APP-${today().replaceAll('-','')}-${String(n++).padStart(3,'0')}`}while(db.students.some(s=>s.applicationRef===ref));
+  return ref;
+}
+function v415PendingApplications(){
+  return db.students.filter(s=>s.status!=='Inactive'&&s.paymentVerificationPending===true&&s.adminApproved!==true)
+    .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+}
+function v415ExactAmount(){
+  const input=document.querySelector('#v415AdmissionForm [name="amount"]');
+  return Math.max(0,Number(input?.value||0));
+}
+window.v415SyncExactAmount=function(){
+  const form=el('v415AdmissionForm');if(!form)return;
+  const amount=Math.max(0,Number(form.elements.amount?.value||0));
+  if(form.elements.paid)form.elements.paid.value=amount||'';
+  const balance=el('v415Balance');if(balance)balance.value='0';
+  const amountText=el('v415PayAmount');if(amountText)amountText.textContent=money(amount);
+};
+window.v415OpenUpi=function(){
+  const form=el('v415AdmissionForm');if(!form)return;
+  const amount=v415ExactAmount();
+  if(amount<=0)return alert('Admission fee amount enter చేయండి.');
+  const student=(form.elements.name?.value||'Student').trim();
+  const note=`Sri Nidhi Admission - ${student}`;
+  const link=`upi://pay?pa=${encodeURIComponent(V415_UPI_ID)}&pn=${encodeURIComponent('Sri Nidhi Study Hall')}&am=${encodeURIComponent(amount.toFixed(2))}&cu=INR&tn=${encodeURIComponent(note)}`;
+  window.__v415UpiOpened=true;
+  window.location.href=link;
+};
+
+function v415PublicAdmissionForm(){
+  return `<div class="v41-admission v415-admission"><h2>Admission Form</h2><p class="muted">Student details fill చేసి, exact admission fee UPI ద్వారా pay చేసి UTR / Transaction ID submit చేయండి. Admin verification తర్వాత మాత్రమే Admission Confirmation PDF, Student ID మరియు Password వస్తాయి.</p>
+  <form id="v415AdmissionForm" class="form-grid">
+    <div class="field span-3 v41-section-title">Student Details</div>
+    <div class="field"><label>Student Name *</label><input name="name" required></div>
+    <div class="field"><label>Date of Birth</label><input type="date" name="dob"></div>
+    <div class="field"><label>Gender</label><select name="gender"><option>Male</option><option>Female</option><option>Other</option></select></div>
+    <div class="field"><label>Student Mobile *</label><input name="phone" inputmode="numeric" maxlength="10" required></div>
+    <div class="field"><label>Father / Guardian Name *</label><input name="parentName" required></div>
+    <div class="field"><label>Parent Mobile *</label><input name="parentPhone" inputmode="numeric" maxlength="10" required></div>
+    <div class="field"><label>Course / Class *</label><input name="course" required></div>
+    <div class="field"><label>TET Score</label><input type="number" name="tetScore" min="0" step="0.01"></div>
+    <div class="field"><label>Batch / Timing</label><input name="batch"></div>
+    <div class="field span-3"><label>Address</label><input name="address"></div>
+
+    <div class="field span-3 v41-section-title">Online Admission Fee</div>
+    <div class="field"><label>Fee Month *</label><input type="month" name="month" value="${monthNow()}" required></div>
+    <div class="field"><label>Amount to Pay *</label><input type="number" name="amount" value="${Number(db.settings.monthlyFee||0)}" min="1" required oninput="v415SyncExactAmount()"></div>
+    <div class="field"><label>Paying Amount</label><input type="number" name="paid" value="${Number(db.settings.monthlyFee||0)}" readonly></div>
+    <div class="field"><label>Balance</label><input id="v415Balance" type="number" value="0" readonly></div>
+    <div class="field"><label>Payment Date *</label><input type="date" name="date" value="${today()}" required></div>
+    <div class="field"><label>UTR / Transaction ID *</label><input name="reference" minlength="6" required placeholder="UPI transaction reference"></div>
+
+    <div class="span-3 v415-upi-card">
+      <div><small>FIXED UPI ID</small><b>${V415_UPI_ID}</b></div>
+      <div><small>EXACT AMOUNT</small><b id="v415PayAmount">${money(Number(db.settings.monthlyFee||0))}</b></div>
+      <button type="button" class="primary" onclick="v415OpenUpi()">Open PhonePe / UPI App</button>
+      <p>UPI app lo amount automatic ga fill అవుతుంది. Amount మార్చకుండా exact amount pay చేయండి.</p>
+    </div>
+    <label class="span-3 v415-confirm"><input type="checkbox" name="paymentDone" required> Exact amount pay చేసి, పై UTR / Transaction ID enter చేశాను.</label>
+    <div class="span-3"><button class="primary full">Submit Payment for Admin Verification</button></div>
+  </form></div>`;
+}
+
+window.v41OpenAdmission=function(){
+  window.__v415UpiOpened=false;
+  openModal(v415PublicAdmissionForm());
+  el('v415AdmissionForm').onsubmit=v415SubmitPublicAdmission;
+  v415SyncExactAmount();
+};
+
+function v415SubmitPublicAdmission(e){
+  e.preventDefault();
+  const o=Object.fromEntries(new FormData(e.target));
+  const phone=digitsOnly(o.phone),parentPhone=digitsOnly(o.parentPhone),amount=Number(o.amount||0),paid=Number(o.paid||0),utr=String(o.reference||'').trim();
+  if(phone.length!==10||parentPhone.length!==10)return alert('Mobile numbers 10 digits ఉండాలి.');
+  if(amount<=0||paid!==amount)return alert('Exact admission fee amount మాత్రమే submit చేయాలి.');
+  if(utr.length<6)return alert('Valid UTR / Transaction ID enter చేయండి.');
+  if(db.students.some(s=>digitsOnly(s.phone)===phone&&s.status!=='Inactive'))return alert('ఈ mobile numberతో admission/application ఇప్పటికే ఉంది.');
+  const appRef=v415ApplicationRef();
+  const request={
+    id:`PENDING-${uid()}`,applicationRef:appRef,password:'',admissionNo:'',name:o.name.trim(),dob:o.dob||'',gender:o.gender||'',phone,
+    parentName:o.parentName.trim(),parentPhone,address:o.address?.trim()||'',course:o.course.trim(),tetScore:o.tetScore||'',batch:o.batch?.trim()||'',
+    monthlyFee:amount,joinDate:o.date,applicationDate:o.date,applicationStatus:'Payment Verification Pending',admissionComplete:false,adminApproved:false,
+    paymentVerificationPending:true,paymentExpected:amount,paymentSubmitted:paid,paymentMonth:o.month,paymentDate:o.date,paymentMode:'UPI',paymentReference:utr,
+    paymentUpiId:V415_UPI_ID,status:'Pending Verification',createdBy:'student-online-admission',createdAt:new Date().toISOString()
+  };
+  db.students.push(request);logAction('admission_payment_submitted',`${request.name} submitted UPI verification (${appRef})`);saveDB();closeModal();
+  alert(`Payment verification request submitted.\nApplication Reference: ${appRef}\n\nAdmin verifies the UTR and exact amount. After approval, Admission PDF with Student ID and Password will be issued.`);
+  if(currentPage==='admissions')renderAdmissions();
+}
+
+window.v415VerifyAdmissionPayment=function(id){
+  const s=db.students.find(x=>x.id===id);if(!s||!s.paymentVerificationPending)return;
+  const expected=Number(s.paymentExpected||0),submitted=Number(s.paymentSubmitted||0);
+  if(expected<=0||submitted!==expected)return alert('Expected amount and submitted amount do not match. Verification blocked.');
+  const promptText=`Verify UPI payment?\n\nStudent: ${s.name}\nExpected Amount: ${money(expected)}\nUPI ID: ${s.paymentUpiId}\nUTR: ${s.paymentReference}\n\nConfirm only after checking the payment in PhonePe / bank statement.`;
+  if(!confirm(promptText))return;
+  const oldId=s.id;
+  s.id=v41AdmissionId();s.password=v41Password();s.admissionNo=v41AdmissionNo();
+  s.admissionComplete=true;s.adminApproved=true;s.paymentVerificationPending=false;s.status='Active';s.applicationStatus='Approved';
+  s.approvedAt=new Date().toISOString();s.admissionCompletedAt=s.approvedAt;s.nextDueDate=v33DatePlusMonth(s.paymentDate||today());
+  const f={id:uid(),studentId:s.id,month:s.paymentMonth||monthNow(),amount:expected,paid:expected,date:s.paymentDate||today(),mode:'UPI',reference:s.paymentReference,
+    receipt:nextReceipt(),nextDueDate:s.nextDueDate,submittedBy:'admin-upi-verification',admissionPayment:true,verifiedBy:'admin',verifiedAt:new Date().toISOString(),createdAt:new Date().toISOString()};
+  db.fees.push(f);logAction('admission_payment_verified',`${s.name} payment verified (${oldId} → ${s.id})`);saveDB();renderAdmissions();v41AdmissionPdf(s,f);
+  alert(`Admission approved. PDF downloaded.\nStudent ID: ${s.id}\nPassword: ${s.password}`);
+};
+
+window.v415DeletePendingApplication=function(id){
+  const s=db.students.find(x=>x.id===id);if(!s||!s.paymentVerificationPending)return;
+  if(!confirm(`Delete pending application for ${s.name}?`))return;
+  db.students=db.students.filter(x=>x.id!==id);saveDB();renderAdmissions();
+};
+
+/* Manual admission remains immediate; public online admission uses verification. */
+window.v413OpenManualAdmission=window.v413OpenManualAdmission;
+
+renderAdmissions=function(){
+  const verify=v415PendingApplications();
+  const approved=db.students.filter(s=>s.adminApproved===true&&s.status!=='Inactive').sort((a,b)=>String(b.approvedAt||b.createdAt||'').localeCompare(String(a.approvedAt||a.createdAt||''))).slice(0,12);
+  el('pageContent').innerHTML=`
+    <section class="card v413-admin-admission-head"><div><small>ADMIN ADMISSION</small><h2>Admissions</h2><p>Verify online UPI payments or create a manual admission.</p></div><div class="v414-admission-actions"><button class="secondary" onclick="v414ShareAdmissionInvitation()">📲 Share Admission Invitation</button><button class="primary" onclick="v413OpenManualAdmission()">+ Manual Admission</button></div></section>
+    <section class="card"><div class="v354-directory-head"><small>UPI VERIFICATION</small><h2>Pending Online Payments</h2><p>PhonePe / bank statement lo UTR and exact amount verify చేసిన తర్వాత మాత్రమే approve చేయండి.</p></div>
+      ${verify.length?`<div class="v413-pending-list">${verify.map(s=>`<div class="v413-pending-card v415-pending-card"><div><b>${esc(s.applicationRef||'-')} : ${esc(s.name)}</b><small>${esc(s.course||'-')} • ${esc(s.phone||'-')}</small><dl><dt>Expected</dt><dd>${money(s.paymentExpected)}</dd><dt>UPI ID</dt><dd>${esc(s.paymentUpiId||V415_UPI_ID)}</dd><dt>UTR</dt><dd>${esc(s.paymentReference||'-')}</dd><dt>Date</dt><dd>${esc(s.paymentDate||'-')}</dd></dl></div><div class="v415-pending-actions"><button class="primary" onclick="v415VerifyAdmissionPayment('${s.id}')">Verify Payment & Approve</button><button class="danger" onclick="v415DeletePendingApplication('${s.id}')">Delete</button></div></div>`).join('')}</div>`:'<div class="empty">No UPI payments waiting for verification.</div>'}
+    </section>
+    <section class="card"><div class="v354-directory-head"><small>RECENT</small><h2>Approved Admissions</h2></div>
+      ${approved.length?`<div class="v354-simple-student-list">${approved.map(s=>`<button onclick="viewStudent('${s.id}')"><span><b>${esc(s.admissionNo||s.id)} : ${esc(s.name)}</b><small>${esc(s.course||'-')} • Approved</small></span><em>›</em></button>`).join('')}</div>`:'<div class="empty">No approved admissions.</div>'}
+    </section>`;
+};
+
+/* Revised invitation accurately describes Option 1 verification. */
+window.v414ShareAdmissionInvitation=function(){
+  const url=new URL(window.location.href);url.search='';url.hash='';url.searchParams.set('admission','1');
+  const message=`🎓 *Sri Nidhi Study Hall Admissions*\n\nAdmission pondadaniki kindha link open chesi *Admission Form* complete cheyyandi.\n\nForm lo చూపించిన exact fee amount ని UPI ద్వారా pay చేసి UTR / Transaction ID submit చేయండి. Admin payment verify చేసిన తర్వాత *Admission Confirmation Receipt* లో *Student ID* మరియు *Password* అందిస్తారు.\n\nVaati dwara *Student Login* chesi *Sri Nidhi Study Hall Family* lo join avvandi.\n\n🔗 *Admission Link:*\n${url.toString()}`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`,'_blank','noopener');
+};
+
+/* Pending verification records must never be accepted by Student Login. */
+const v415OldActiveStudent=typeof activeStudent==='function'?activeStudent:null;
+
+for(const s of db.students){
+  if(s.paymentVerificationPending===true){s.password='';s.admissionComplete=false;s.adminApproved=false;s.status='Pending Verification';}
+}
+db.meta.schemaVersion=10;saveDB();
+const v415Badge=[...document.querySelectorAll('body>div')].find(x=>x.textContent&&/v4\.3\.0|v4\.1\.4|v4\.1\.3/.test(x.textContent||''));if(v415Badge)v415Badge.textContent='v4.1.5 Option 1';

@@ -1,0 +1,14 @@
+Sri Nidhi Study Hall v4.1.5 — OPTION 1
+
+Public Admission Payment Flow
+- Fixed UPI ID: 9390856544@ybl
+- Exact admission amount is pre-filled in PhonePe / any UPI app.
+- Public applicant must enter UTR / Transaction ID.
+- No Admission Number, Student ID, Password or Admission PDF is generated before admin verification.
+- Admin Admissions page shows pending UPI payment requests.
+- Admin checks UTR and exact amount in PhonePe / bank statement, then selects Verify Payment & Approve.
+- Only after verification are Admission Number, Student ID, Password, fee receipt and Admission Confirmation PDF generated.
+- Manual Admission remains available to the admin.
+
+Important
+A normal UPI deep link cannot independently confirm the bank payment. Admin verification is mandatory in this Option 1 release.
